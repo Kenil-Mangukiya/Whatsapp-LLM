@@ -13,7 +13,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api/v1", messageRoute);
+app.use("/fwba", messageRoute);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
