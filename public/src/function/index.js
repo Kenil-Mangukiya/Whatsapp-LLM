@@ -26,7 +26,7 @@ const sendTextMsg = async (contact_number = null, text, contact_id = null) => {
     headers: {
       accept: "application/json",
       authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
-      ...data.getHeaders(),
+      "Content-Type": "multipart/form-data",
     },
     data: data,
   };
