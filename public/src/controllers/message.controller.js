@@ -18,7 +18,7 @@ const webhook = asyncHandler(async (req, res) => {
     console.log("📩 Incoming webhook body:", req.body);
 
     if (type === "text") {
-      const textMsg = message?.text?.body?.trim();
+      const textMsg = message?.text?.body?.trim() + "Kenil";
       if (textMsg) {
         await sendTextMsg(sender_id, textMsg);
       } else {
