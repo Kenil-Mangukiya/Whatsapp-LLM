@@ -1,7 +1,14 @@
 import axios from "axios"; 
 
 const sendTextMsg = async (from, text) => {
-  var config = {
+  if (!from) {
+    throw new Error("Recipient (from) is required.");
+  }
+  if (!text) {
+    throw new Error("Message text is required.");
+  }
+
+  const config = {
     method: "post",
     maxBodyLength: Infinity,
     url: `${process.env.FBWA_URL}/send-new-message`,
@@ -16,18 +23,25 @@ const sendTextMsg = async (from, text) => {
       to: from,
       type: "text",
       text: {
-        body: text
+        body: text,
       },
     },
   };
 
-  axios(config)
-    .then(function (response) {
-      //console.log(JSON.stringify(response.data));
-    })
-    .catch(function (error) {
-      console.log(error);
-    });
+  try {
+    const response = await axios.request(config);
+    console.log("✅ Message sent:", response.data);
+    return response.data;
+  } catch (err) {
+    console.error("❌ Error sending message:");
+    if (err.response) {
+      console.error("Status:", err.response.status);
+      console.error("Data:", err.response.data);
+    } else {
+      console.error("Message:", err.message);
+    }
+    throw err;
+  }
 };
 
 const markAsRead = async (msgId) => {

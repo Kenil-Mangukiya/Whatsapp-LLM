@@ -5,34 +5,55 @@ import apiResponse from "../utils/apiResponse.js";
 import { sendTextMsg, markAsRead, sendFlowTemp, sendTemp, sendTempImage, orderNoGen, invoiceNoGen } from "../function/index.js";
 
 const webhook = asyncHandler(async (req, res) => {
-    try {
-      const { message, contact, type, status, sender_id, whatsapp_message_id } = req.body;
-      console.log("req.body : ",req.body);
-      if (type == "text") {
-        const textMsg = message?.text?.body;
-        if(textMsg != ''){
-              sendTextMsg(sender_id, textMsg);
-        }
-        //console.log({ textMsg });
+  try {
+    const {
+      message,
+      contact,
+      type,
+      status,
+      sender_id,
+      whatsapp_message_id,
+    } = req.body;
+
+    console.log("📩 Incoming webhook body:", req.body);
+
+    if (type === "text") {
+      const textMsg = message?.text?.body?.trim();
+      if (textMsg) {
+        await sendTextMsg(sender_id, textMsg);
+      } else {
+        console.warn("⚠️ Empty text message received.");
       }
-      //if(whatsapp_message_id){
-          //markAsRead(whatsapp_message_id);
-      //}
-      if (type == "order") {
-        const product_items = message?.order?.product_items;
-        console.log({ product_items });
-      }
-      console.log({status});
-      res
-        .status(200)
-        .json({ success: true, message: "Message Send Successfully" });
-    } catch (error) {
-      console.log(error);
-      res
-        .status(error?.body?.statusCode || 500)
-        .json({ message: error?.response?.data?.message });
     }
-  });
+
+    if (type === "order") {
+      const product_items = message?.order?.product_items || [];
+      console.log("🛒 Order received:", product_items);
+    }
+
+    console.log("📌 Status:", status);
+
+    res.status(200).json({
+      success: true,
+      message: "Webhook processed successfully",
+    });
+  } catch (error) {
+    console.error("❌ Webhook error:", error.message);
+
+    if (error.response) {
+      console.error("Status:", error.response.status);
+      console.error("Data:", error.response.data);
+    } else {
+      console.error("Stack:", error.stack);
+    }
+
+    res.status(error?.response?.status || 500).json({
+      success: false,
+      message: error?.response?.data?.message || error.message || "Internal Server Error",
+    });
+  }
+});
+
 
 
 export { webhook };
