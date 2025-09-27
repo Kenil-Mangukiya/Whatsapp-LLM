@@ -26,10 +26,10 @@ const webhook = asyncHandler(async (req, res) => {
       }
     }
 
-    if (type === "order") {
-      const product_items = message?.order?.product_items || [];
-      console.log("🛒 Order received:", product_items);
-    }
+    // if (type === "order") {
+    //   const product_items = message?.order?.product_items || [];
+    //   console.log("🛒 Order received:", product_items);
+    // }
 
     console.log("📌 Status:", status);
 
