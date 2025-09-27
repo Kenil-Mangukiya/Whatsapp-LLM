@@ -40,4 +40,8 @@ Object.keys(db).forEach(modelName => {
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
+// Export specific models for easier imports
+db.Conversation = db.conversation;
+db.Message = db.messagesModel;
+
 module.exports = db;
