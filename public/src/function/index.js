@@ -4,11 +4,11 @@ const sendTextMsg = async (from, text) => {
   var config = {
     method: "post",
     maxBodyLength: Infinity,
-    url: `${process.env.FBWA_URL}/send-message`,
+    url: `${process.env.FBWA_URL}/send-new-message`,
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json, application/xml",
-      Authorization: `Bearer ${process.env.FBWA_KEY}`,
+      Authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
     },
     data: {
       messaging_product: "whatsapp",

@@ -7,6 +7,7 @@ import { sendTextMsg, markAsRead, sendFlowTemp, sendTemp, sendTempImage, orderNo
 const webhook = asyncHandler(async (req, res) => {
     try {
       const { message, contact, type, status, sender_id, whatsapp_message_id } = req.body;
+      console.log("req.body : ",req.body);
       if (type == "text") {
         const textMsg = message?.text?.body;
         if(textMsg != ''){
@@ -14,9 +15,9 @@ const webhook = asyncHandler(async (req, res) => {
         }
         //console.log({ textMsg });
       }
-      if(whatsapp_message_id){
-          markAsRead(whatsapp_message_id);
-      }
+      //if(whatsapp_message_id){
+          //markAsRead(whatsapp_message_id);
+      //}
       if (type == "order") {
         const product_items = message?.order?.product_items;
         console.log({ product_items });
