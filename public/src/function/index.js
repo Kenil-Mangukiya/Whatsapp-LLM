@@ -1,31 +1,34 @@
 import axios from "axios"; 
 
-const sendTextMsg = async (from, text) => {
-  if (!from) {
-    throw new Error("Recipient (from) is required.");
+const sendTextMsg = async (contact_number = null, text, contact_id = null) => {
+  if (!contact_number && !contact_id) {
+    throw new Error("Either contact_number or contact_id is required.");
   }
   if (!text) {
     throw new Error("Message text is required.");
   }
+
+  const data = new FormData();
+
+  if (contact_id) {
+    data.append("contact_id", contact_id);
+  } else {
+    data.append("contact_number", contact_number);
+  }
+
+  data.append("messageType", "text");
+  data.append("newMessage", text);
 
   const config = {
     method: "post",
     maxBodyLength: Infinity,
     url: `${process.env.FBWA_URL}/send-new-message`,
     headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json, application/xml",
-      Authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
+      accept: "application/json",
+      authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
+      ...data.getHeaders(),
     },
-    data: {
-      messaging_product: "whatsapp",
-      recipient_type: "individual",
-      to: from,
-      type: "text",
-      text: {
-        body: text,
-      },
-    },
+    data: data,
   };
 
   try {
@@ -43,7 +46,6 @@ const sendTextMsg = async (from, text) => {
     throw err;
   }
 };
-
 const markAsRead = async (msgId) => {
   var config = {
     method: "post",
