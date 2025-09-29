@@ -3,6 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Sequelize from 'sequelize';
 import dotenv from 'dotenv';
+import conversationModel from './conversation.model.js';
+import messageModel from './message.model.js';
 
 dotenv.config();
 
@@ -46,9 +48,6 @@ const sequelize = config[env].use_env_variable
   ? new Sequelize(process.env[config[env].use_env_variable], config[env])
   : new Sequelize(config[env].database, config[env].username, config[env].password, config[env]);
 
-// Import models directly
-import conversationModel from './conversation.model.js';
-import messageModel from './message.model.js';
 
 // Initialize models
 const conversation = conversationModel(sequelize, Sequelize.DataTypes);
