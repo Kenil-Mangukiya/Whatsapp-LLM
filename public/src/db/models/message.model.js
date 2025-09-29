@@ -1,4 +1,4 @@
-module.exports = (sequelize, Sequelize) => {
+export default (sequelize, Sequelize) => {
     const messageModel = sequelize.define("messagesModel", {
         id : {
             type : Sequelize.INTEGER,
