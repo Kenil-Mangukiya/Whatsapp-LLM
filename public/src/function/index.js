@@ -22,7 +22,7 @@ const sendTextMsg = async (contact_number = null, text, contact_id = null) => {
   const config = {
     method: "post",
     maxBodyLength: Infinity,
-    url: `${process.env.FBWA_URL}/send-new-message`,
+    url: `${process.env.FBWA_URL}/send-message`,
     headers: {
       accept: "application/json",
       authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
