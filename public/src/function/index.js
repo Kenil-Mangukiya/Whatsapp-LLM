@@ -1,6 +1,6 @@
 import axios from "axios"; 
 
-exports.sendTextMsg = async (from, text) => {
+const sendTextMsg = async (from, text) => {
   var config = {
     method: "post",
     maxBodyLength: Infinity,
