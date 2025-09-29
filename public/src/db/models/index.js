@@ -4,7 +4,6 @@ import { fileURLToPath } from 'url';
 import Sequelize from 'sequelize';
 import dotenv from 'dotenv';
 import conversationModel from './conversation.model.js';
-import messageModel from './message.model.js';
 
 dotenv.config();
 
@@ -51,10 +50,8 @@ const sequelize = config[env].use_env_variable
 
 // Initialize models
 const conversation = conversationModel(sequelize, Sequelize.DataTypes);
-const messagesModel = messageModel(sequelize, Sequelize.DataTypes);
 
 db.conversation = conversation;
-db.messagesModel = messagesModel;
 
 Object.keys(db).forEach(modelName => {
   if (db[modelName].associate) {
@@ -67,11 +64,9 @@ db.Sequelize = Sequelize;
 
 // Export specific models for easier imports
 db.Conversation = db.conversation;
-db.Message = db.messagesModel;
 
 // Export everything
 export default db;
 export { db };
 export const Conversation = db.conversation;
-export const Message = db.messagesModel;
 export { sequelize };
