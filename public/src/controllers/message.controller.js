@@ -73,6 +73,7 @@ const webhook = asyncHandler(async (req, res) => {
 
         // Send response
         const response = await sendTextMsg(sender_id, responseMessage);
+        console.log("📤 Response sent:", response);
         
         // Save outgoing message to database
         try {
@@ -88,6 +89,7 @@ const webhook = asyncHandler(async (req, res) => {
             contact_phone: contact?.phone_no,
             contact_wa_id: contact?.wa_id
           });
+          console.log("✅ Outgoing message saved to database:", responseMessage);
         } catch (dbError) {
           console.error("❌ Error saving outgoing message:", dbError.message);
         }

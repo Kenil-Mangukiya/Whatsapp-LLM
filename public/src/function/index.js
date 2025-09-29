@@ -1,50 +1,33 @@
 import axios from "axios"; 
 
-const sendTextMsg = async (contact_number = null, text, contact_id = null) => {
-  if (!contact_number && !contact_id) {
-    throw new Error("Either contact_number or contact_id is required.");
-  }
-  if (!text) {
-    throw new Error("Message text is required.");
-  }
-
-  const data = new FormData();
-
-  if (contact_id) {
-    data.append("contact_id", contact_id);
-  } else {
-    data.append("contact_number", contact_number);
-  }
-
-  data.append("messageType", "text");
-  data.append("newMessage", text);
-
-  const config = {
+exports.sendTextMsg = async (from, text) => {
+  var config = {
     method: "post",
     maxBodyLength: Infinity,
     url: `${process.env.FBWA_URL}/send-message`,
     headers: {
-      accept: "application/json",
-      authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
-      "Content-Type": "multipart/form-data",
+      "Content-Type": "application/json",
+      Accept: "application/json, application/xml",
+      Authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
     },
-    data: data,
+    data: {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: from,
+      type: "text",
+      text: {
+        body: text
+      },
+    },
   };
 
-  try {
-    const response = await axios.request(config);
-    console.log("✅ Message sent:", response.data);
-    return response.data;
-  } catch (err) {
-    console.error("❌ Error sending message:");
-    if (err.response) {
-      console.error("Status:", err.response.status);
-      console.error("Data:", err.response.data);
-    } else {
-      console.error("Message:", err.message);
-    }
-    throw err;
-  }
+  axios(config)
+    .then(function (response) {
+      //console.log(JSON.stringify(response.data));
+    })
+    .catch(function (error) {
+      console.log(error);
+    });
 };
 
 const markAsRead = async (msgId) => {
@@ -55,7 +38,7 @@ const markAsRead = async (msgId) => {
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json, application/xml",
-      Authorization: `Bearer ${process.env.FBWA_KEY}`,
+      Authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
     },
     data: {
       "messaging_product": "whatsapp",
