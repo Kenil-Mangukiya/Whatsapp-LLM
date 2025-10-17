@@ -4,6 +4,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import apiResponse from "../utils/apiResponse.js";
 import { sendTextMsg, markAsRead } from "../function/index.js";
 import ConversationService from "../services/conversation.service.js";
+import { chatGPT } from "../function/ai.js";
 
 const webhook = asyncHandler(async (req, res) => {
   try {
@@ -56,19 +57,64 @@ const webhook = asyncHandler(async (req, res) => {
           console.error("❌ Error marking message as read:", markError.message);
         }
 
-        // Create response based on conversation context
-        let responseMessage = textMsg;
+        // Get conversation history and format for AI
+        let responseMessage;
+        let structuredData = null;
         
         if (conversationContext.hasPreviousConversation) {
-          // Get conversation summary for context
-          const conversationSummary = await ConversationService.getConversationSummary(contact_id);
-          console.log("📋 Previous conversation context:", conversationSummary);
+          // Get last 5 messages for context
+          const lastMessages = await ConversationService.getLastMessages(contact_id, 5);
           
-          // You can customize the response based on previous conversation
-          responseMessage = `Thank you for your message: "${textMsg}". I can see we've spoken before. How can I help you today?`;
+          // Format conversation history for AI
+          let conversationHistory = "";
+          lastMessages.forEach(msg => {
+            const sender = msg.sender_type === 'contact' ? 'customer' : 'ai';
+            conversationHistory += `${sender} : "${msg.message_content}"\n`;
+          });
+          
+          console.log("📋 Conversation history for AI:", conversationHistory);
+          
+          // Send to AI with conversation context
+          const aiResponse = await chatGPT({
+            message: textMsg,
+            conversationHistory: conversationHistory,
+            userInfo: {
+              contact_id,
+              contact_name: contact?.name,
+              contact_phone: contact?.phone_no
+            }
+          });
+          
+          if (aiResponse.success) {
+            responseMessage = aiResponse.message;
+            structuredData = aiResponse.structuredData;
+            console.log("🤖 AI Response:", responseMessage);
+            console.log("📊 Structured Data:", structuredData);
+          } else {
+            responseMessage = "I'm sorry, I'm having trouble processing your request right now. Please try again.";
+            console.error("❌ AI Error:", aiResponse.error);
+          }
         } else {
-          // First time customer
-          responseMessage = `Hello! Thank you for your message: "${textMsg}". This is your first time contacting us. How can I assist you today?`;
+          // First time customer - send to AI without conversation history
+          const aiResponse = await chatGPT({
+            message: textMsg,
+            conversationHistory: "",
+            userInfo: {
+              contact_id,
+              contact_name: contact?.name,
+              contact_phone: contact?.phone_no
+            }
+          });
+          
+          if (aiResponse.success) {
+            responseMessage = aiResponse.message;
+            structuredData = aiResponse.structuredData;
+            console.log("🤖 AI Response (New Customer):", responseMessage);
+            console.log("📊 Structured Data:", structuredData);
+          } else {
+            responseMessage = "Hello! Thank you for contacting us. How can I assist you today?";
+            console.error("❌ AI Error:", aiResponse.error);
+          }
         }
 
         // Send response
@@ -87,9 +133,10 @@ const webhook = asyncHandler(async (req, res) => {
             thread_id,
             contact_name: contact?.name,
             contact_phone: contact?.phone_no,
-            contact_wa_id: contact?.wa_id
+            contact_wa_id: contact?.wa_id,
+            structured_data: structuredData ? JSON.stringify(structuredData) : null
           });
-          console.log("✅ Outgoing message saved to database:", responseMessage);
+          console.log("💾 AI response saved to database with structured data");
         } catch (dbError) {
           console.error("❌ Error saving outgoing message:", dbError.message);
         }
