@@ -150,6 +150,8 @@ REPLY:
 JSON:
 {"fullname":null,"block":null,"ward_number":null,"property_type":null,"address":null,"free_time":null}
 
+CRITICAL: The REPLY section and JSON section must be completely separate. Never include JSON in the REPLY section!
+
 ========================
 FALLBACK & CLARITY
 ========================
@@ -229,6 +231,7 @@ ${latestMessage}`;
     console.log('🔍 Raw AI Content:', content);
 
     try {
+      // First try the proper format
       const match = content.match(/REPLY:\s*([\s\S]*?)\n+JSON:\s*([\s\S]*)$/i);
       if (match) {
         const replyPart = match[1].trim();
@@ -247,9 +250,32 @@ ${latestMessage}`;
           structuredData = null;
         }
       } else {
-        console.log('⚠️ No structured format found, treating as plain reply');
-        reply = content.trim();
-        structuredData = null;
+        // Check if content contains JSON but not in proper format
+        const jsonMatch = content.match(/JSON:\s*([\s\S]*)$/i);
+        if (jsonMatch) {
+          console.log('⚠️ Found JSON but not in proper format, extracting...');
+          const jsonPart = jsonMatch[1].trim();
+          const cleanedJson = jsonPart.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+          
+          // Remove JSON part from content to get clean reply
+          reply = content.replace(/JSON:\s*[\s\S]*$/i, '').trim();
+          
+          console.log('📝 Extracted Reply:', reply);
+          console.log('📊 Extracted JSON String:', cleanedJson);
+          
+          try {
+            structuredData = JSON.parse(cleanedJson);
+            console.log('✅ Parsed Structured Data:', structuredData);
+          } catch (e) {
+            console.error('❌ JSON parse error:', e.message);
+            console.error('❌ JSON string was:', cleanedJson);
+            structuredData = null;
+          }
+        } else {
+          console.log('⚠️ No structured format found, treating as plain reply');
+          reply = content.trim();
+          structuredData = null;
+        }
       }
     } catch (_) {
       // keep defaults on parse failure
