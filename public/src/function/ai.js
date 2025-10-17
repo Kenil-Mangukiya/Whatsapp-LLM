@@ -163,15 +163,21 @@ Latest Message:
 ${latestMessage}`;
 
     // --- 3) Prepare OpenAI request ---
+    console.log('🔧 ChatGPT Config:', {
+      url: process.env.CHATGPT_API_URL,
+      model: process.env.CHATGPT_MODEL,
+      hasApiKey: !!process.env.CHATGPT_API_KEY
+    });
+
     const config = {
       method: 'post',
-      url: process.env.CHATGPT_API_URL,
+      url: process.env.CHATGPT_API_URL || 'https://api.openai.com/v1/chat/completions',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.CHATGPT_API_KEY}`,
       },
       data: {
-        model: process.env.OPENAI_MODEL,
+        model: process.env.CHATGPT_MODEL,
         messages: [
           { role: 'system', content: prompt },
           { role: 'user', content: userContent },
