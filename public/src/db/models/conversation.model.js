@@ -115,6 +115,11 @@ export default (sequelize, Sequelize) => {
             allowNull: true,
             comment: 'Contact WhatsApp ID'
         },
+        details: {
+            type: Sequelize.JSON,
+            allowNull: true,
+            comment: 'Structured data in JSON format (fullname, block, property_type, address, ward_number)'
+        },
         created_at: {
             type: Sequelize.DATE,
             allowNull: false,

@@ -76,7 +76,8 @@ class ConversationService {
                 thread_id,
                 contact_name,
                 contact_phone,
-                contact_wa_id
+                contact_wa_id,
+                structured_data
             } = messageData;
 
             const conversationData = {
@@ -96,7 +97,8 @@ class ConversationService {
                 is_failed: false,
                 contact_name,
                 contact_phone,
-                contact_wa_id
+                contact_wa_id,
+                details: structured_data ? JSON.parse(structured_data) : null
             };
 
             const savedMessage = await Conversation.create(conversationData);
