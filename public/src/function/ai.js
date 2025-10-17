@@ -9,8 +9,6 @@ import axios from 'axios';
  * @returns {Promise<Object>} - ChatGPT response
  */
 
-import axios from 'axios';
-
 /**
  * ChatGPT function to generate AI responses (history-aware)
  * @param {Object} data
@@ -246,8 +244,5 @@ ${latestMessage}`;
     };
   }
 };
-
-export { chatGPT };
-
 
 export { chatGPT };
