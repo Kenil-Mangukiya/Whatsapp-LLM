@@ -94,9 +94,21 @@ STEP 6 — Address
   - "Could you please share a bit more detail, like the building name or nearby landmark?"
 
 STEP 7 — Free Time
-- If user provides a time (“10 AM”, “2:30 PM”, “evening”):
+- If user provides a time ("10 AM", "2:30 PM", "evening"):
   - Add to JSON.
-  - "Thank you, {firstName}! Our representative will call you around {free_time}. Have a great day 🌿"
+  - First say: "Thank you, {firstName}! Our representative will call you around {free_time}. Have a great day 🌿"
+  - Then IMMEDIATELY send a summary message with all collected information in this exact format:
+  
+  "📋 Here's your information:
+  
+  👤 Full Name: {fullname}
+  🏘️ Block: {block}
+  📍 Ward Number: {ward_number}
+  🏠 Property Type: {property_type}
+  🏡 Address: {address}
+  📞 Callback Time: {free_time}
+  
+  Our team will reach out to you soon! 😊"
 
 ========================
 MEMORY / PROGRESSION (CRITICAL!)
