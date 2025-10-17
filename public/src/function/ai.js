@@ -132,6 +132,8 @@ JSON OUTPUT RULES
 ========================
 OUTPUT FORMAT (MUST FOLLOW EXACTLY)
 ========================
+You MUST output in this exact format:
+
 REPLY:
 <your WhatsApp message to customer, human-like, max ~2 lines, no JSON here>
 
@@ -139,12 +141,20 @@ JSON:
 { ...valid JSON object per rules above... }
 
 CRITICAL RULES:
+- ALWAYS start with "REPLY:" followed by a newline
+- ALWAYS end with "JSON:" followed by a newline and valid JSON
 - The REPLY section goes to WhatsApp - keep it clean and human-like
 - The JSON section is for internal processing only - never send to customer
 - NEVER include "JSON:" or raw JSON in the REPLY section
 - NEVER include "REPLY:" or "JSON:" headers in the actual WhatsApp message
+- The JSON must be valid and include all fields (use null for missing values)
 
-(Ensure "REPLY:" and "JSON:" headers are present exactly as shown for parsing.)
+EXAMPLE OUTPUT:
+REPLY:
+👋 Welcome to DortiBox! How can I help you today?
+
+JSON:
+{"fullname":null,"block":null,"ward_number":null,"property_type":null,"address":null,"free_time":null}
 
 ========================
 FALLBACK & CLARITY
@@ -216,6 +226,8 @@ ${latestMessage}`;
     let reply = content.trim();
     let structuredData = null;
 
+    console.log('🔍 Raw AI Content:', content);
+
     try {
       const match = content.match(/REPLY:\s*([\s\S]*?)\n+JSON:\s*([\s\S]*)$/i);
       if (match) {
@@ -224,12 +236,20 @@ ${latestMessage}`;
         // Clean possible trailing fence
         const cleanedJson = jsonPart.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
         reply = replyPart;
+        console.log('📝 Parsed Reply:', reply);
+        console.log('📊 Parsed JSON String:', cleanedJson);
         try {
           structuredData = JSON.parse(cleanedJson);
+          console.log('✅ Parsed Structured Data:', structuredData);
         } catch (e) {
-          // keep null if JSON parsing fails
+          console.error('❌ JSON parse error:', e.message);
+          console.error('❌ JSON string was:', cleanedJson);
           structuredData = null;
         }
+      } else {
+        console.log('⚠️ No structured format found, treating as plain reply');
+        reply = content.trim();
+        structuredData = null;
       }
     } catch (_) {
       // keep defaults on parse failure
