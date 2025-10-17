@@ -63,7 +63,16 @@ const webhook = asyncHandler(async (req, res) => {
         
         if (conversationContext.hasPreviousConversation) {
           // Get last 5 messages for context
-          const lastMessages = await ConversationService.getLastMessages(contact_id, 5);
+          const lastMessages = await ConversationService.getLastMessages(contact_id, 10);
+          
+          // Find the last complete details from previous messages
+          let lastKnownDetails = null;
+          for (let i = lastMessages.length - 1; i >= 0; i--) {
+            if (lastMessages[i].sender_type === 'agent' && lastMessages[i].details) {
+              lastKnownDetails = lastMessages[i].details;
+              break;
+            }
+          }
           
           // Format conversation history for AI
           let conversationHistory = "";
@@ -72,7 +81,13 @@ const webhook = asyncHandler(async (req, res) => {
             conversationHistory += `${sender} : "${msg.message_content}"\n`;
           });
           
+          // Add previous details to conversation history
+          if (lastKnownDetails) {
+            conversationHistory += `\nPreviously Collected Data: ${JSON.stringify(lastKnownDetails)}\n`;
+          }
+          
           console.log("📋 Conversation history for AI:", conversationHistory);
+          console.log("📊 Last known details:", lastKnownDetails);
           
           // Send to AI with conversation context
           const aiResponse = await chatGPT({

@@ -141,7 +141,8 @@ class ConversationService {
                     'sender_type',
                     'receiver_type',
                     'status',
-                    'created_at'
+                    'created_at',
+                    'details'
                 ]
             });
             return messages.reverse(); // Return in chronological order
