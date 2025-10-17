@@ -136,6 +136,48 @@ const webhook = asyncHandler(async (req, res) => {
         const response = await sendTextMsg(sender_id, responseMessage);
         console.log("📤 Response sent:", response);
         
+        // If this is the final confirmation message, send summary
+        if (structuredData && structuredData.free_time && 
+            responseMessage.includes("Thank you") && 
+            responseMessage.includes("representative will call")) {
+          
+          // Create summary message
+          const summaryMessage = `📋 Here's your information:
+
+👤 Full Name: ${structuredData.fullname || 'Not provided'}
+🏘️ Block: ${structuredData.block || 'Not provided'}
+📍 Ward Number: ${structuredData.ward_number || 'Not provided'}
+🏠 Property Type: ${structuredData.property_type || 'Not provided'}
+🏡 Address: ${structuredData.address || 'Not provided'}
+📞 Callback Time: ${structuredData.free_time || 'Not provided'}
+
+Our team will reach out to you soon! 😊`;
+          
+          // Send summary message
+          try {
+            await sendTextMsg(sender_id, summaryMessage);
+            console.log("📋 Summary message sent to customer");
+            
+            // Save summary message to database
+            await ConversationService.saveOutgoingMessage({
+              contact_id,
+              sender_id: 'system',
+              receiver_id: sender_id,
+              message_content: summaryMessage,
+              message_type: 'text',
+              status: 'sent',
+              thread_id,
+              contact_name: contact?.name,
+              contact_phone: contact?.phone_no,
+              contact_wa_id: contact?.wa_id,
+              structured_data: JSON.stringify(structuredData)
+            });
+            console.log("💾 Summary message saved to database");
+          } catch (summaryError) {
+            console.error("❌ Error sending summary message:", summaryError.message);
+          }
+        }
+        
         // Save outgoing message to database
         try {
           await ConversationService.saveOutgoingMessage({
