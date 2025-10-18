@@ -468,6 +468,10 @@ const sendBigPurchaseTemplate = async (from) => {
 
 const createUser = async (userData) => {
   try {
+    // Generate random 4-digit number
+    const randomNumber = Math.floor(1000 + Math.random() * 9000);
+    const userNumber = `USR${randomNumber}`;
+    
     const options = {
       method: "POST",
       url: "https://dev-api.dortibox.com/admin/user/create",
@@ -484,12 +488,14 @@ const createUser = async (userData) => {
         status: "ACTIVATED",
         ward: userData.ward,
         block: userData.block,
-        houseNumber: userData.houseNumber
+        houseNumber: userData.houseNumber,
+        number: userNumber
       }
     };
 
     const { data } = await axios.request(options);
     console.log("✅ User created successfully:", data);
+    console.log("🔢 Generated user number:", userNumber);
     return data;
   } catch (error) {
     console.log({ error: error?.response?.data || error?.message });
