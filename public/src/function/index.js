@@ -466,4 +466,33 @@ const sendBigPurchaseTemplate = async (from) => {
   }
 };
 
-export { sendTextMsg, markAsRead, sendFlowTemp, sendTemp, sendTempImage, orderNoGen, invoiceNoGen, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate };
+const createUser = async (userData) => {
+  try {
+    const options = {
+      method: "POST",
+      url: "https://dev-api.dortibox.com/admin/user/create",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      data: {
+        countryCode: userData.countryCode || "+232",
+        mobile: userData.mobile,
+        rawPassword: "1234",
+        userName: userData.userName,
+        status: "ACTIVATED",
+        ward: userData.ward,
+        block: userData.block
+      }
+    };
+
+    const { data } = await axios.request(options);
+    console.log("✅ User created successfully:", data);
+    return data;
+  } catch (error) {
+    console.log({ error: error?.response?.data || error?.message });
+    throw error;
+  }
+};
+
+export { sendTextMsg, markAsRead, sendFlowTemp, sendTemp, sendTempImage, orderNoGen, invoiceNoGen, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser };

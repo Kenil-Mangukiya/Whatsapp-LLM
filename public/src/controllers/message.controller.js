@@ -2,7 +2,7 @@ import axios from "axios";
 import FormData from "form-data";
 import asyncHandler from "../utils/asyncHandler.js"; 
 import apiResponse from "../utils/apiResponse.js";
-import { sendTextMsg, markAsRead, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate } from "../function/index.js";
+import { sendTextMsg, markAsRead, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser } from "../function/index.js";
 import ConversationService from "../services/conversation.service.js";
 import { chatGPT } from "../function/ai.js";
 
@@ -129,6 +129,73 @@ const webhook = asyncHandler(async (req, res) => {
           } else {
             responseMessage = "Hello! Thank you for contacting us. How can I assist you today?";
             console.error("❌ AI Error:", aiResponse.error);
+          }
+        }
+
+        // Create user in Dortibox API if address is collected
+        if (structuredData && structuredData.address && structuredData.block && structuredData.ward_number) {
+          try {
+            console.log("🚀 Creating user in Dortibox API...");
+            
+            // Extract mobile number from contact
+            const mobile = contact?.phone_no?.replace(/\D/g, '') || contact?.wa_id?.replace(/\D/g, '');
+            
+            // Extract country code (default to +232 if not available)
+            const countryCode = contact?.phone_no?.includes('+') ? 
+              contact.phone_no.substring(0, contact.phone_no.length - mobile.length) : '+232';
+            
+            const userData = {
+              countryCode: countryCode,
+              mobile: mobile,
+              userName: structuredData.fullname || 'User',
+              ward: structuredData.ward_number,
+              block: structuredData.block
+            };
+            
+            await createUser(userData);
+            console.log("✅ User created successfully in Dortibox API");
+            
+            // Send success message
+            await sendTextMsg(sender_id, "✅ Your account has been created successfully! Let's continue with your subscription setup.");
+            
+            // Save the success message
+            await ConversationService.saveOutgoingMessage({
+              contact_id,
+              sender_id: 'system',
+              receiver_id: sender_id,
+              message_content: "✅ Your account has been created successfully! Let's continue with your subscription setup.",
+              message_type: 'text',
+              status: 'sent',
+              thread_id,
+              contact_name: contact?.name,
+              contact_phone: contact?.phone_no,
+              contact_wa_id: contact?.wa_id,
+              structured_data: JSON.stringify(structuredData)
+            });
+            
+          } catch (error) {
+            console.error("❌ Failed to create user in Dortibox API:", error);
+            
+            // Send failure message
+            await sendTextMsg(sender_id, "❌ Failed to store your information. Please try again or contact support.");
+            
+            // Save the failure message
+            await ConversationService.saveOutgoingMessage({
+              contact_id,
+              sender_id: 'system',
+              receiver_id: sender_id,
+              message_content: "❌ Failed to store your information. Please try again or contact support.",
+              message_type: 'text',
+              status: 'sent',
+              thread_id,
+              contact_name: contact?.name,
+              contact_phone: contact?.phone_no,
+              contact_wa_id: contact?.wa_id,
+              structured_data: JSON.stringify(structuredData)
+            });
+            
+            // Return early to stop the flow
+            return res.status(200).json({ success: true });
           }
         }
 
@@ -414,7 +481,6 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
           
           // Send big purchase template next
           await sendBigPurchaseTemplate(sender_id);
-          await sendTextMsg(sender_id, "Perfect! One final question about additional services.");
           
           return res.status(200).json({ success: true });
         }
