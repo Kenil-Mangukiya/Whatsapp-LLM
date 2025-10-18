@@ -76,20 +76,17 @@ STEP 3 — Block Number
   → “Sorry 😅, our services are currently active only for Block 6. We’ll notify you once it expands!”  
   - End politely.  
 - If block == 6:  
-  → “Perfect! Please share your ward number (between 429 and 434).”
+  → "Perfect! Let me show you the available ward numbers."
 
 STEP 4 — Ward Number  
-- If valid (429–434):  
-  → “Got it! What type of property is this — Domestic, Commercial, or Institutional?”  
-- If invalid:  
-  → “Hmm, that ward number seems outside our service area. Please recheck (it should be between 429 and 434).”
+- User will select from template: 429, 430, 431, 432, 433, 434  
+- After selection:  
+  → "Got it! Now let me show you the property types."
 
 STEP 5 — Property Type  
-- Accept only: Domestic / Commercial / Institutional  
-- If valid:  
-  → “Thanks! Please share your complete address or nearby landmark.”  
-- If invalid:  
-  → “Please reply with one of these options: Domestic, Commercial, or Institutional.”
+- User will select from template: Domestic, Commercial, Institutional  
+- After selection:  
+  → "Thanks! Please share your complete address or nearby landmark."
 
 STEP 6 — Address  
 - If valid (a few words or location):  
@@ -132,7 +129,7 @@ JSON must include all fields (use null if not collected):
   "fullname": string|null,
   "block": number|null,
   "ward_number": number|null,
-  "property_type": "Domestic"|"Commercial"|"Institutional"|null,
+  "property_type": "domestic"|"commercial"|"institutional"|null,
   "address": string|null,
   "wants_subscription": boolean|null,
   "bin_size": string|null,

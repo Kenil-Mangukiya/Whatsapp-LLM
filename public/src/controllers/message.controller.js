@@ -2,7 +2,7 @@ import axios from "axios";
 import FormData from "form-data";
 import asyncHandler from "../utils/asyncHandler.js"; 
 import apiResponse from "../utils/apiResponse.js";
-import { sendTextMsg, markAsRead, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser } from "../function/index.js";
+import { sendTextMsg, markAsRead, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser, fetchWards, fetchBlocks, sendWardNumberTemplate, sendPropertyTypeTemplate } from "../function/index.js";
 import ConversationService from "../services/conversation.service.js";
 import { chatGPT } from "../function/ai.js";
 
@@ -144,17 +144,46 @@ const webhook = asyncHandler(async (req, res) => {
             const countryCode = contact?.phone_no?.includes('+') ? 
               contact.phone_no.substring(0, contact.phone_no.length - mobile.length) : '+232';
             
+            // Fetch blocks to get block ID
+            const blocksResponse = await fetchBlocks();
+            const blocks = blocksResponse.data || [];
+            
+            // Find matching block by name
+            const matchingBlock = blocks.find(block => 
+              block.name.toLowerCase().includes(structuredData.block.toLowerCase()) ||
+              structuredData.block.toLowerCase().includes(block.name.toLowerCase())
+            );
+            
+            if (!matchingBlock) {
+              throw new Error(`Block "${structuredData.block}" not found`);
+            }
+            
+            // Fetch wards for the block
+            const wardsResponse = await fetchWards(matchingBlock._id);
+            const wards = wardsResponse.result || [];
+            
+            // Find matching ward by ward number
+            const matchingWard = wards.find(ward => 
+              ward.wardNumber === structuredData.ward_number.toString()
+            );
+            
+            if (!matchingWard) {
+              throw new Error(`Ward "${structuredData.ward_number}" not found in block "${structuredData.block}"`);
+            }
+            
             const userData = {
               countryCode: countryCode,
               mobile: mobile,
               userName: structuredData.fullname || 'User',
-              ward: structuredData.ward_number,
-              block: structuredData.block,
+              ward: matchingWard._id, // Use ward ID
+              block: matchingBlock._id, // Use block ID
               houseNumber: structuredData.address
             };
             
             await createUser(userData);
             console.log("✅ User created successfully in Dortibox API");
+            console.log("🏘️ Block ID:", matchingBlock._id, "Block Name:", matchingBlock.name);
+            console.log("📍 Ward ID:", matchingWard._id, "Ward Number:", matchingWard.wardNumber);
             
             // Send success message
             await sendTextMsg(sender_id, "✅ Your account has been created successfully! Let's continue with your subscription setup.");
@@ -484,6 +513,52 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
           await sendBigPurchaseTemplate(sender_id);
           
           return res.status(200).json({ success: true });
+        } else if (['429', '430', '431', '432', '433', '434'].includes(selectedOption.id)) {
+          // Ward number selection
+          updatedStructuredData.ward_number = selectedOption.id;
+          console.log("📊 Updated ward number:", selectedOption.id);
+          
+          // Save the ward number selection
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: `Selected ward: ${selectedOption.title}`,
+            message_type: 'template',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(updatedStructuredData)
+          });
+          
+          // Send property type template next
+          await sendPropertyTypeTemplate(sender_id);
+          
+          return res.status(200).json({ success: true });
+        } else if (['domestic', 'commercial', 'institutional'].includes(selectedOption.id)) {
+          // Property type selection
+          updatedStructuredData.property_type = selectedOption.id;
+          console.log("📊 Updated property type:", selectedOption.id);
+          
+          // Save the property type selection
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: `Selected property type: ${selectedOption.title}`,
+            message_type: 'template',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(updatedStructuredData)
+          });
+          
+          // Continue with address collection (AI will handle this)
+          // No return here, let AI handle the next step
         }
         
         // Save the updated data

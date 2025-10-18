@@ -466,6 +466,48 @@ const sendBigPurchaseTemplate = async (from) => {
   }
 };
 
+const fetchWards = async (blockId) => {
+  try {
+    const options = {
+      method: "GET",
+      url: `https://dev-api.dortibox.com/block/${blockId}/ward`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MzQzZTI4MjczYjcwYmNkNmZlODIzNSIsInVzZXJOYW1lIjoiY2hpcmFnQGFkbWluLmNvbSIsInR5cGUiOiJBRE1JTiIsImlhdCI6MTc2MDc3MTEzMiwiZXhwIjoxNzYwODA3MTMyfQ.p3t5UD89VwBw26hweaSCARxegbW7x6aDBHU8T_9r2O8"
+      }
+    };
+
+    const { data } = await axios.request(options);
+    console.log("✅ Wards fetched successfully:", data);
+    return data;
+  } catch (error) {
+    console.log({ error: error?.response?.data || error?.message });
+    throw error;
+  }
+};
+
+const fetchBlocks = async () => {
+  try {
+    const options = {
+      method: "GET",
+      url: "https://dev-api.dortibox.com/get/block?isViewOnly=true",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MzQzZTI4MjczYjcwYmNkNmZlODIzNSIsInVzZXJOYW1lIjoiY2hpcmFnQGFkbWluLmNvbSIsInR5cGUiOiJBRE1JTiIsImlhdCI6MTc2MDc3MTEzMiwiZXhwIjoxNzYwODA3MTMyfQ.p3t5UD89VwBw26hweaSCARxegbW7x6aDBHU8T_9r2O8"
+      }
+    };
+
+    const { data } = await axios.request(options);
+    console.log("✅ Blocks fetched successfully:", data);
+    return data;
+  } catch (error) {
+    console.log({ error: error?.response?.data || error?.message });
+    throw error;
+  }
+};
+
 const createUser = async (userData) => {
   try {
     // Generate random 4-digit number
@@ -483,9 +525,8 @@ const createUser = async (userData) => {
       data: {
         countryCode: userData.countryCode || "+232",
         mobile: userData.mobile,
-        rawPassword: "1234",
+        password: "1234",
         userName: userData.userName,
-        status: "ACTIVATED",
         ward: userData.ward,
         block: userData.block,
         houseNumber: userData.houseNumber,
@@ -503,4 +544,126 @@ const createUser = async (userData) => {
   }
 };
 
-export { sendTextMsg, markAsRead, sendFlowTemp, sendTemp, sendTempImage, orderNoGen, invoiceNoGen, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser };
+const sendWardNumberTemplate = async (from) => {
+  try {
+    const options = {
+      method: "POST",
+      url: `${process.env.FBWA_URL}/send-message`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, application/xml",
+        Authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
+      },
+      data: {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: from,
+        type: "interactive",
+        interactive: {
+          type: "list",
+          body: {
+            text: "📍 Select your ward number:"
+          },
+          action: {
+            button: "Select Ward",
+            sections: [
+              {
+                title: "Ward Numbers",
+                rows: [
+                  {
+                    id: "429",
+                    title: "Ward 429"
+                  },
+                  {
+                    id: "430",
+                    title: "Ward 430"
+                  },
+                  {
+                    id: "431",
+                    title: "Ward 431"
+                  },
+                  {
+                    id: "432",
+                    title: "Ward 432"
+                  },
+                  {
+                    id: "433",
+                    title: "Ward 433"
+                  },
+                  {
+                    id: "434",
+                    title: "Ward 434"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    };
+
+    const { data } = await axios.request(options);
+    console.log("✅ Ward number template sent:", data);
+    return data;
+  } catch (error) {
+    console.log({ error: error?.response?.data || error?.message });
+    throw error;
+  }
+};
+
+const sendPropertyTypeTemplate = async (from) => {
+  try {
+    const options = {
+      method: "POST",
+      url: `${process.env.FBWA_URL}/send-message`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, application/xml",
+        Authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
+      },
+      data: {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: from,
+        type: "interactive",
+        interactive: {
+          type: "list",
+          body: {
+            text: "🏠 Select your property type:"
+          },
+          action: {
+            button: "Select Property",
+            sections: [
+              {
+                title: "Property Types",
+                rows: [
+                  {
+                    id: "domestic",
+                    title: "Domestic"
+                  },
+                  {
+                    id: "commercial",
+                    title: "Commercial"
+                  },
+                  {
+                    id: "institutional",
+                    title: "Institutional"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    };
+
+    const { data } = await axios.request(options);
+    console.log("✅ Property type template sent:", data);
+    return data;
+  } catch (error) {
+    console.log({ error: error?.response?.data || error?.message });
+    throw error;
+  }
+};
+
+export { sendTextMsg, markAsRead, sendFlowTemp, sendTemp, sendTempImage, orderNoGen, invoiceNoGen, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser, fetchWards, fetchBlocks, sendWardNumberTemplate, sendPropertyTypeTemplate };
