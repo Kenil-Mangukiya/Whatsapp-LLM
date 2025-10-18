@@ -601,8 +601,24 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
             structured_data: JSON.stringify(updatedStructuredData)
           });
           
-          // Continue with address collection (AI will handle this)
-          // No return here, let AI handle the next step
+          // Send AI message to continue the flow
+          await sendTextMsg(sender_id, "Thanks! Please share your complete address or nearby landmark.");
+          
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: "Thanks! Please share your complete address or nearby landmark.",
+            message_type: 'text',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(updatedStructuredData)
+          });
+          
+          return res.status(200).json({ success: true });
         }
         
         // Save the updated data
