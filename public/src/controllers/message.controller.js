@@ -132,6 +132,50 @@ const webhook = asyncHandler(async (req, res) => {
           }
         }
 
+        // Check if we need to send ward number template
+        if (structuredData && structuredData.block === 6 && !structuredData.ward_number) {
+          console.log("🎯 User provided block 6, sending ward number template");
+          await sendWardNumberTemplate(sender_id);
+          
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: "📍 Please select your ward number from the options above.",
+            message_type: 'template',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(structuredData)
+          });
+          
+          return res.status(200).json({ success: true });
+        }
+
+        // Check if we need to send property type template
+        if (structuredData && structuredData.ward_number && !structuredData.property_type) {
+          console.log("🎯 User provided ward number, sending property type template");
+          await sendPropertyTypeTemplate(sender_id);
+          
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: "🏠 Please select your property type from the options above.",
+            message_type: 'template',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(structuredData)
+          });
+          
+          return res.status(200).json({ success: true });
+        }
+
         // Create user in Dortibox API if address is collected
         if (structuredData && structuredData.address && structuredData.block && structuredData.ward_number) {
           try {
@@ -150,8 +194,8 @@ const webhook = asyncHandler(async (req, res) => {
             
             // Find matching block by name
             const matchingBlock = blocks.find(block => 
-              block.name.toLowerCase().includes(structuredData.block.toLowerCase()) ||
-              structuredData.block.toLowerCase().includes(block.name.toLowerCase())
+              block.name.toLowerCase().includes(structuredData.block.toString().toLowerCase()) ||
+              structuredData.block.toString().toLowerCase().includes(block.name.toLowerCase())
             );
             
             if (!matchingBlock) {

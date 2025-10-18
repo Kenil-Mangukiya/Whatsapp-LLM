@@ -530,7 +530,6 @@ const createUser = async (userData) => {
         ward: userData.ward,
         block: userData.block,
         houseNumber: userData.houseNumber,
-        number: userNumber
       }
     };
 
