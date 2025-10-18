@@ -178,8 +178,7 @@ const webhook = asyncHandler(async (req, res) => {
 
         // Create user in Dortibox API if address is collected
         if (structuredData && structuredData.address && structuredData.block && structuredData.ward_number) {
-          try {
-            console.log("🚀 Creating user in Dortibox API...");
+          console.log("🚀 Creating user in Dortibox API...");
             
             // Extract mobile number from contact
             const mobile = contact?.phone_no?.replace(/\D/g, '') || contact?.wa_id?.replace(/\D/g, '');
@@ -225,52 +224,80 @@ const webhook = asyncHandler(async (req, res) => {
               propertyType: structuredData.property_type ? structuredData.property_type.toUpperCase() : null
             };
             
-            await createUser(userData);
-            console.log("✅ User created successfully in Dortibox API");
-            console.log("🏘️ Block ID:", matchingBlock._id, "Block Name:", matchingBlock.name);
-            console.log("📍 Ward ID:", matchingWard._id, "Ward Number:", matchingWard.wardNumber);
-            
-            // Send success message
-            await sendTextMsg(sender_id, "✅ Your account has been created successfully! Let's continue with your subscription setup.");
-            
-            // Save the success message
-            await ConversationService.saveOutgoingMessage({
-              contact_id,
-              sender_id: 'system',
-              receiver_id: sender_id,
-              message_content: "✅ Your account has been created successfully! Let's continue with your subscription setup.",
-              message_type: 'text',
-              status: 'sent',
-              thread_id,
-              contact_name: contact?.name,
-              contact_phone: contact?.phone_no,
-              contact_wa_id: contact?.wa_id,
-              structured_data: JSON.stringify(structuredData)
-            });
-            
-          } catch (error) {
-            console.error("❌ Failed to create user in Dortibox API:", error);
-            
-            // Send failure message
-            await sendTextMsg(sender_id, "❌ Failed to store your information. Please try again or contact support.");
-            
-            // Save the failure message
-            await ConversationService.saveOutgoingMessage({
-              contact_id,
-              sender_id: 'system',
-              receiver_id: sender_id,
-              message_content: "❌ Failed to store your information. Please try again or contact support.",
-              message_type: 'text',
-              status: 'sent',
-              thread_id,
-              contact_name: contact?.name,
-              contact_phone: contact?.phone_no,
-              contact_wa_id: contact?.wa_id,
-              structured_data: JSON.stringify(structuredData)
-            });
-            
-            // Return early to stop the flow
-            return res.status(200).json({ success: true });
+            try {
+              await createUser(userData);
+              console.log("✅ User created successfully in Dortibox API");
+              console.log("🏘️ Block ID:", matchingBlock._id, "Block Name:", matchingBlock.name);
+              console.log("📍 Ward ID:", matchingWard._id, "Ward Number:", matchingWard.wardNumber);
+              
+              // Send success message
+              await sendTextMsg(sender_id, "✅ Your account has been created successfully! Let's continue with your subscription setup.");
+              
+              // Save the success message
+              await ConversationService.saveOutgoingMessage({
+                contact_id,
+                sender_id: 'system',
+                receiver_id: sender_id,
+                message_content: "✅ Your account has been created successfully! Let's continue with your subscription setup.",
+                message_type: 'text',
+                status: 'sent',
+                thread_id,
+                contact_name: contact?.name,
+                contact_phone: contact?.phone_no,
+                contact_wa_id: contact?.wa_id,
+                structured_data: JSON.stringify(structuredData)
+              });
+              
+            } catch (error) {
+              console.error("❌ API Error:", error);
+              
+              // Check if user already exists
+              if (error?.response?.data?.message === 'User Already Exist.' || 
+                  error?.response?.data?.message?.includes('already exist') ||
+                  error?.response?.data?.message?.includes('User Already Exist')) {
+                console.log("ℹ️ User already exists, continuing with flow");
+                
+                // Send continuation message
+                await sendTextMsg(sender_id, "✅ Your information is already in our system! Let's continue with your subscription setup.");
+                
+                // Save the continuation message
+                await ConversationService.saveOutgoingMessage({
+                  contact_id,
+                  sender_id: 'system',
+                  receiver_id: sender_id,
+                  message_content: "✅ Your information is already in our system! Let's continue with your subscription setup.",
+                  message_type: 'text',
+                  status: 'sent',
+                  thread_id,
+                  contact_name: contact?.name,
+                  contact_phone: contact?.phone_no,
+                  contact_wa_id: contact?.wa_id,
+                  structured_data: JSON.stringify(structuredData)
+                });
+              } else {
+                console.error("❌ Failed to create user in Dortibox API:", error);
+                
+                // Send failure message
+                await sendTextMsg(sender_id, "❌ Failed to store your information. Please try again or contact support.");
+                
+                // Save the failure message
+                await ConversationService.saveOutgoingMessage({
+                  contact_id,
+                  sender_id: 'system',
+                  receiver_id: sender_id,
+                  message_content: "❌ Failed to store your information. Please try again or contact support.",
+                  message_type: 'text',
+                  status: 'sent',
+                  thread_id,
+                  contact_name: contact?.name,
+                  contact_phone: contact?.phone_no,
+                  contact_wa_id: contact?.wa_id,
+                  structured_data: JSON.stringify(structuredData)
+                });
+                
+                // Return early to stop the flow
+                return res.status(200).json({ success: true });
+              }
           }
         }
 
