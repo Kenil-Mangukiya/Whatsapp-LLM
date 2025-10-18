@@ -221,7 +221,8 @@ const webhook = asyncHandler(async (req, res) => {
               userName: structuredData.fullname || 'User',
               ward: matchingWard._id, // Use ward ID
               block: matchingBlock._id, // Use block ID
-              houseNumber: structuredData.address
+              houseNumber: structuredData.address,
+              propertyType: structuredData.property_type ? structuredData.property_type.toUpperCase() : null
             };
             
             await createUser(userData);
