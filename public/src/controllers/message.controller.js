@@ -2,7 +2,7 @@ import axios from "axios";
 import FormData from "form-data";
 import asyncHandler from "../utils/asyncHandler.js"; 
 import apiResponse from "../utils/apiResponse.js";
-import { sendTextMsg, markAsRead, sendBinSizeTemplate } from "../function/index.js";
+import { sendTextMsg, markAsRead, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate } from "../function/index.js";
 import ConversationService from "../services/conversation.service.js";
 import { chatGPT } from "../function/ai.js";
 
@@ -136,6 +136,9 @@ const webhook = asyncHandler(async (req, res) => {
         const hasAddress = structuredData && structuredData.address;
         const wantsSubscription = structuredData && structuredData.wants_subscription === true;
         const hasBinSize = structuredData && structuredData.bin_size;
+        const hasFrequency = structuredData && structuredData.frequency;
+        const hasPickupDays = structuredData && structuredData.pickup_days && Array.isArray(structuredData.pickup_days) && structuredData.pickup_days.length >= 3;
+        const hasBigPurchase = structuredData && structuredData.big_purchase !== null;
         
         // Check if all required information is collected (different paths for subscribers vs non-subscribers)
         const isCompleteForNonSubscriber = structuredData && 
@@ -154,20 +157,88 @@ const webhook = asyncHandler(async (req, res) => {
           structuredData.property_type && 
           structuredData.address && 
           structuredData.wants_subscription === true &&
-          structuredData.bin_size;
+          structuredData.bin_size &&
+          structuredData.frequency &&
+          hasPickupDays &&
+          structuredData.big_purchase !== null;
 
-        // Handle subscription decision
+        // Handle subscription flow progression
         if (hasAddress && structuredData.wants_subscription === true && !hasBinSize) {
           // User wants subscription but hasn't selected bin size yet
           console.log("🎯 User wants subscription, sending bin size template");
           await sendBinSizeTemplate(sender_id);
           
-          // Save the subscription decision
           await ConversationService.saveOutgoingMessage({
             contact_id,
             sender_id: 'system',
             receiver_id: sender_id,
             message_content: "Great! Let me help you choose the right bin size for your needs.",
+            message_type: 'text',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(structuredData)
+          });
+          
+          return res.status(200).json({ success: true });
+        }
+
+        // Handle frequency selection
+        if (hasBinSize && !hasFrequency) {
+          console.log("🎯 User selected bin size, sending frequency template");
+          await sendFrequencyTemplate(sender_id);
+          
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: "Perfect! Now let's set up your pickup schedule.",
+            message_type: 'text',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(structuredData)
+          });
+          
+          return res.status(200).json({ success: true });
+        }
+
+        // Handle pickup days selection
+        if (hasFrequency && !hasPickupDays) {
+          console.log("🎯 User selected frequency, sending pickup days template");
+          await sendPickupDaysTemplate(sender_id);
+          
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: "Great! Now select your preferred pickup days.",
+            message_type: 'text',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(structuredData)
+          });
+          
+          return res.status(200).json({ success: true });
+        }
+
+        // Handle big purchase decision
+        if (hasPickupDays && structuredData.big_purchase === null) {
+          console.log("🎯 User selected pickup days, sending big purchase template");
+          await sendBigPurchaseTemplate(sender_id);
+          
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: "Excellent! One final question about additional services.",
             message_type: 'text',
             status: 'sent',
             thread_id,
@@ -215,6 +286,9 @@ Our team will reach out to you soon! 😊`;
 
         // Handle final completion for subscribers
         if (isCompleteForSubscriber) {
+          const pickupDaysText = structuredData.pickup_days.join(', ');
+          const bigPurchaseText = structuredData.big_purchase ? 'Yes' : 'No';
+          
           const summaryMessage = `📋 Here's your subscription details:
 
 👤 Full Name: ${structuredData.fullname}
@@ -223,6 +297,9 @@ Our team will reach out to you soon! 😊`;
 🏠 Property Type: ${structuredData.property_type}
 🏡 Address: ${structuredData.address}
 🗑️ Bin Size: ${structuredData.bin_size}
+📅 Frequency: ${structuredData.frequency}
+📆 Pickup Days: ${pickupDaysText}
+🛒 Additional Services: ${bigPurchaseText}
 
 Your subscription is confirmed! Our team will contact you soon. 😊`;
           
@@ -275,16 +352,15 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
       }
     }
 
-    // Handle interactive messages (bin size selection)
+    // Handle interactive messages (all template selections)
     if (type === "interactive") {
       const interactiveData = message?.interactive;
       
       if (interactiveData?.type === "list_reply") {
         const selectedOption = interactiveData.list_reply;
-        console.log("🎯 User selected bin size:", selectedOption);
+        console.log("🎯 User selected option:", selectedOption);
         
-        // Get conversation context to update with bin size
-        const conversationContext = await ConversationService.getConversationContext(contact_id);
+        // Get conversation context to update with selection
         const lastMessages = await ConversationService.getLastMessages(contact_id, 10);
         
         // Find the last structured data
@@ -296,13 +372,105 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
           }
         }
         
-        // Update structured data with bin size
+        // Determine what was selected based on the option ID
+        let updatedStructuredData = { ...lastKnownDetails };
+        
+        if (selectedOption.id.includes('ltr') || selectedOption.id.includes('kg')) {
+          // Bin size selection
+          updatedStructuredData.bin_size = selectedOption.id;
+          console.log("📊 Updated with bin size:", selectedOption.id);
+          
+          // Send frequency template next
+          await sendFrequencyTemplate(sender_id);
+          await sendTextMsg(sender_id, "Perfect! Now let's set up your pickup schedule.");
+          
+        } else if (selectedOption.id.includes('per_week') || selectedOption.id === 'daily') {
+          // Frequency selection
+          updatedStructuredData.frequency = selectedOption.id;
+          console.log("📊 Updated with frequency:", selectedOption.id);
+          
+          // Send pickup days template next
+          await sendPickupDaysTemplate(sender_id);
+          await sendTextMsg(sender_id, "Great! Now select your preferred pickup days.");
+          
+        } else if (['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].includes(selectedOption.id)) {
+          // Pickup day selection - handle multiple selections
+          const currentDays = updatedStructuredData.pickup_days || [];
+          const today = new Date().getDay();
+          const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          const todayName = dayNames[today];
+          
+          // Check if today's day is being deselected (not allowed)
+          if (selectedOption.id === todayName && currentDays.includes(selectedOption.id)) {
+            await sendTextMsg(sender_id, `❌ Sorry, you cannot deselect ${todayName.charAt(0).toUpperCase() + todayName.slice(1)} as it's today. Please select at least 3 days total.`);
+            return res.status(200).json({ success: true });
+          }
+          
+          // Toggle selection
+          let newDays;
+          if (currentDays.includes(selectedOption.id)) {
+            newDays = currentDays.filter(day => day !== selectedOption.id);
+          } else {
+            newDays = [...currentDays, selectedOption.id];
+          }
+          
+          // Ensure today is always included
+          if (!newDays.includes(todayName)) {
+            newDays.push(todayName);
+          }
+          
+          updatedStructuredData.pickup_days = newDays;
+          console.log("📊 Updated pickup days:", newDays);
+          
+          // Validate minimum 3 days
+          if (newDays.length < 3) {
+            await sendTextMsg(sender_id, `❌ Please select at least 3 pickup days. You currently have ${newDays.length} selected. ${todayName.charAt(0).toUpperCase() + todayName.slice(1)} is required as today.`);
+            return res.status(200).json({ success: true });
+          }
+          
+          // If we have enough days, send big purchase template
+          if (newDays.length >= 3) {
+            await sendBigPurchaseTemplate(sender_id);
+            await sendTextMsg(sender_id, "Excellent! One final question about additional services.");
+          }
+        }
+        
+        // Save the updated data
+        await ConversationService.saveOutgoingMessage({
+          contact_id,
+          sender_id: 'system',
+          receiver_id: sender_id,
+          message_content: `Selected: ${selectedOption.title}`,
+          message_type: 'interactive',
+          status: 'sent',
+          thread_id,
+          contact_name: contact?.name,
+          contact_phone: contact?.phone_no,
+          contact_wa_id: contact?.wa_id,
+          structured_data: JSON.stringify(updatedStructuredData)
+        });
+        
+      } else if (interactiveData?.type === "button_reply") {
+        // Handle button replies (big purchase yes/no)
+        const buttonReply = interactiveData.button_reply;
+        console.log("🎯 User clicked button:", buttonReply);
+        
+        // Get conversation context
+        const lastMessages = await ConversationService.getLastMessages(contact_id, 10);
+        let lastKnownDetails = null;
+        for (let i = lastMessages.length - 1; i >= 0; i--) {
+          if (lastMessages[i].sender_type === 'agent' && lastMessages[i].details) {
+            lastKnownDetails = lastMessages[i].details;
+            break;
+          }
+        }
+        
         const updatedStructuredData = {
           ...lastKnownDetails,
-          bin_size: selectedOption.id
+          big_purchase: buttonReply.id === 'big_purchase_yes'
         };
         
-        console.log("📊 Updated structured data with bin size:", updatedStructuredData);
+        console.log("📊 Updated with big purchase decision:", updatedStructuredData.big_purchase);
         
         // Check if subscription is now complete
         const isCompleteForSubscriber = updatedStructuredData && 
@@ -312,9 +480,16 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
           updatedStructuredData.property_type && 
           updatedStructuredData.address && 
           updatedStructuredData.wants_subscription === true &&
-          updatedStructuredData.bin_size;
+          updatedStructuredData.bin_size &&
+          updatedStructuredData.frequency &&
+          updatedStructuredData.pickup_days &&
+          updatedStructuredData.pickup_days.length >= 3 &&
+          updatedStructuredData.big_purchase !== null;
 
         if (isCompleteForSubscriber) {
+          const pickupDaysText = updatedStructuredData.pickup_days.join(', ');
+          const bigPurchaseText = updatedStructuredData.big_purchase ? 'Yes' : 'No';
+          
           const summaryMessage = `📋 Here's your subscription details:
 
 👤 Full Name: ${updatedStructuredData.fullname}
@@ -322,7 +497,10 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
 📍 Ward Number: ${updatedStructuredData.ward_number}
 🏠 Property Type: ${updatedStructuredData.property_type}
 🏡 Address: ${updatedStructuredData.address}
-🗑️ Bin Size: ${selectedOption.title}
+🗑️ Bin Size: ${updatedStructuredData.bin_size}
+📅 Frequency: ${updatedStructuredData.frequency}
+📆 Pickup Days: ${pickupDaysText}
+🛒 Additional Services: ${bigPurchaseText}
 
 Your subscription is confirmed! Our team will contact you soon. 😊`;
           

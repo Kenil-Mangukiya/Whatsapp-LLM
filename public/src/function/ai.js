@@ -136,6 +136,9 @@ JSON must include all fields (use null if not collected):
   "address": string|null,
   "wants_subscription": boolean|null,
   "bin_size": string|null,
+  "frequency": string|null,
+  "pickup_days": array|null,
+  "big_purchase": boolean|null,
   "free_time": string|null
 }
 
