@@ -149,7 +149,8 @@ const webhook = asyncHandler(async (req, res) => {
               mobile: mobile,
               userName: structuredData.fullname || 'User',
               ward: structuredData.ward_number,
-              block: structuredData.block
+              block: structuredData.block,
+              houseNumber: structuredData.address
             };
             
             await createUser(userData);

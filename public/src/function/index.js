@@ -483,7 +483,8 @@ const createUser = async (userData) => {
         userName: userData.userName,
         status: "ACTIVATED",
         ward: userData.ward,
-        block: userData.block
+        block: userData.block,
+        houseNumber: userData.houseNumber
       }
     };
 
