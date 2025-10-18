@@ -391,16 +391,32 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
           
           // Send pickup days template next
           await sendPickupDaysTemplate(sender_id);
-          await sendTextMsg(sender_id, "Great! Now select your preferred pickup days.");
           
         } else if (['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].includes(selectedOption.id)) {
           // Pickup day selection - simple handling
           updatedStructuredData.pickup_days = [selectedOption.id];
           console.log("📊 Updated pickup days:", selectedOption.id);
           
+          // Save the pickup day selection
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: `Selected pickup day: ${selectedOption.title}`,
+            message_type: 'template',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(updatedStructuredData)
+          });
+          
           // Send big purchase template next
           await sendBigPurchaseTemplate(sender_id);
           await sendTextMsg(sender_id, "Perfect! One final question about additional services.");
+          
+          return res.status(200).json({ success: true });
         }
         
         // Save the updated data
