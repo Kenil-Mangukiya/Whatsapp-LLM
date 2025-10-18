@@ -344,11 +344,6 @@ const sendFrequencyTemplate = async (from) => {
 
 const sendPickupDaysTemplate = async (from) => {
   try {
-    // Get current day of week
-    const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const todayName = dayNames[today];
-    
     const options = {
       method: "POST",
       url: `${process.env.FBWA_URL}/send-message`,
@@ -365,7 +360,7 @@ const sendPickupDaysTemplate = async (from) => {
         interactive: {
           type: "list",
           body: {
-            text: `📅 Select your pickup days (minimum 3 days required). ${todayName.charAt(0).toUpperCase() + todayName.slice(1)} is pre-selected as today:`
+            text: "📅 Choose your pickup day"
           },
           action: {
             button: "Select Days",
@@ -376,32 +371,32 @@ const sendPickupDaysTemplate = async (from) => {
                   {
                     id: "monday",
                     title: "Monday",
-                    description: today === 1 ? "✅ Today (Required)" : "Available"
+                    description: "Weekly pickup on Monday"
                   },
                   {
                     id: "tuesday",
-                    title: "Tuesday", 
-                    description: today === 2 ? "✅ Today (Required)" : "Available"
+                    title: "Tuesday",
+                    description: "Weekly pickup on Tuesday"
                   },
                   {
                     id: "wednesday",
                     title: "Wednesday",
-                    description: today === 3 ? "✅ Today (Required)" : "Available"
+                    description: "Weekly pickup on Wednesday"
                   },
                   {
                     id: "thursday",
                     title: "Thursday",
-                    description: today === 4 ? "✅ Today (Required)" : "Available"
+                    description: "Weekly pickup on Thursday"
                   },
                   {
                     id: "friday",
                     title: "Friday",
-                    description: today === 5 ? "✅ Today (Required)" : "Available"
+                    description: "Weekly pickup on Friday"
                   },
                   {
                     id: "saturday",
                     title: "Saturday",
-                    description: today === 6 ? "✅ Today (Required)" : "Available"
+                    description: "Weekly pickup on Saturday"
                   }
                 ]
               }

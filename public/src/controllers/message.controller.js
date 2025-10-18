@@ -137,7 +137,7 @@ const webhook = asyncHandler(async (req, res) => {
         const wantsSubscription = structuredData && structuredData.wants_subscription === true;
         const hasBinSize = structuredData && structuredData.bin_size;
         const hasFrequency = structuredData && structuredData.frequency;
-        const hasPickupDays = structuredData && structuredData.pickup_days && Array.isArray(structuredData.pickup_days) && structuredData.pickup_days.length >= 3;
+        const hasPickupDays = structuredData && structuredData.pickup_days && Array.isArray(structuredData.pickup_days) && structuredData.pickup_days.length > 0;
         const hasBigPurchase = structuredData && structuredData.big_purchase !== null;
         
         // Check if all required information is collected (different paths for subscribers vs non-subscribers)
@@ -394,45 +394,13 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
           await sendTextMsg(sender_id, "Great! Now select your preferred pickup days.");
           
         } else if (['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].includes(selectedOption.id)) {
-          // Pickup day selection - handle multiple selections
-          const currentDays = updatedStructuredData.pickup_days || [];
-          const today = new Date().getDay();
-          const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-          const todayName = dayNames[today];
+          // Pickup day selection - simple handling
+          updatedStructuredData.pickup_days = [selectedOption.id];
+          console.log("📊 Updated pickup days:", selectedOption.id);
           
-          // Check if today's day is being deselected (not allowed)
-          if (selectedOption.id === todayName && currentDays.includes(selectedOption.id)) {
-            await sendTextMsg(sender_id, `❌ Sorry, you cannot deselect ${todayName.charAt(0).toUpperCase() + todayName.slice(1)} as it's today. Please select at least 3 days total.`);
-            return res.status(200).json({ success: true });
-          }
-          
-          // Toggle selection
-          let newDays;
-          if (currentDays.includes(selectedOption.id)) {
-            newDays = currentDays.filter(day => day !== selectedOption.id);
-          } else {
-            newDays = [...currentDays, selectedOption.id];
-          }
-          
-          // Ensure today is always included
-          if (!newDays.includes(todayName)) {
-            newDays.push(todayName);
-          }
-          
-          updatedStructuredData.pickup_days = newDays;
-          console.log("📊 Updated pickup days:", newDays);
-          
-          // Validate minimum 3 days
-          if (newDays.length < 3) {
-            await sendTextMsg(sender_id, `❌ Please select at least 3 pickup days. You currently have ${newDays.length} selected. ${todayName.charAt(0).toUpperCase() + todayName.slice(1)} is required as today.`);
-            return res.status(200).json({ success: true });
-          }
-          
-          // If we have enough days, send big purchase template
-          if (newDays.length >= 3) {
-            await sendBigPurchaseTemplate(sender_id);
-            await sendTextMsg(sender_id, "Excellent! One final question about additional services.");
-          }
+          // Send big purchase template next
+          await sendBigPurchaseTemplate(sender_id);
+          await sendTextMsg(sender_id, "Perfect! One final question about additional services.");
         }
         
         // Save the updated data
@@ -483,7 +451,7 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
           updatedStructuredData.bin_size &&
           updatedStructuredData.frequency &&
           updatedStructuredData.pickup_days &&
-          updatedStructuredData.pickup_days.length >= 3 &&
+          updatedStructuredData.pickup_days.length > 0 &&
           updatedStructuredData.big_purchase !== null;
 
         if (isCompleteForSubscriber) {
