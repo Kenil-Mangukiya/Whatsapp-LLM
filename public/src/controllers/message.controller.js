@@ -2,7 +2,7 @@ import axios from "axios";
 import FormData from "form-data";
 import asyncHandler from "../utils/asyncHandler.js"; 
 import apiResponse from "../utils/apiResponse.js";
-import { sendTextMsg, markAsRead } from "../function/index.js";
+import { sendTextMsg, markAsRead, sendBinSizeTemplate } from "../function/index.js";
 import ConversationService from "../services/conversation.service.js";
 import { chatGPT } from "../function/ai.js";
 
@@ -132,17 +132,56 @@ const webhook = asyncHandler(async (req, res) => {
           }
         }
 
-        // Check if all required information is collected
-        const isComplete = structuredData && 
+        // Check if user wants subscription and has address
+        const hasAddress = structuredData && structuredData.address;
+        const wantsSubscription = structuredData && structuredData.wants_subscription === true;
+        const hasBinSize = structuredData && structuredData.bin_size;
+        
+        // Check if all required information is collected (different paths for subscribers vs non-subscribers)
+        const isCompleteForNonSubscriber = structuredData && 
           structuredData.fullname && 
           structuredData.block && 
           structuredData.ward_number && 
           structuredData.property_type && 
           structuredData.address && 
+          structuredData.wants_subscription === false &&
           structuredData.free_time;
 
-        if (isComplete) {
-          // Send final summary message only
+        const isCompleteForSubscriber = structuredData && 
+          structuredData.fullname && 
+          structuredData.block && 
+          structuredData.ward_number && 
+          structuredData.property_type && 
+          structuredData.address && 
+          structuredData.wants_subscription === true &&
+          structuredData.bin_size;
+
+        // Handle subscription decision
+        if (hasAddress && structuredData.wants_subscription === true && !hasBinSize) {
+          // User wants subscription but hasn't selected bin size yet
+          console.log("🎯 User wants subscription, sending bin size template");
+          await sendBinSizeTemplate(sender_id);
+          
+          // Save the subscription decision
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: "Great! Let me help you choose the right bin size for your needs.",
+            message_type: 'text',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(structuredData)
+          });
+          
+          return res.status(200).json({ success: true });
+        }
+
+        // Handle final completion for non-subscribers
+        if (isCompleteForNonSubscriber) {
           const summaryMessage = `📋 Here's your information:
 
 👤 Full Name: ${structuredData.fullname}
@@ -154,11 +193,9 @@ const webhook = asyncHandler(async (req, res) => {
 
 Our team will reach out to you soon! 😊`;
           
-          // Send only the summary message
-          const response = await sendTextMsg(sender_id, summaryMessage);
-          console.log("📋 Final summary sent:", response);
+          await sendTextMsg(sender_id, summaryMessage);
+          console.log("📋 Final summary sent for non-subscriber");
           
-          // Save summary message to database
           await ConversationService.saveOutgoingMessage({
             contact_id,
             sender_id: 'system',
@@ -172,12 +209,46 @@ Our team will reach out to you soon! 😊`;
             contact_wa_id: contact?.wa_id,
             structured_data: JSON.stringify(structuredData)
           });
-          console.log("💾 Final summary saved to database");
-        } else {
-          // Send normal response for incomplete information
-          const response = await sendTextMsg(sender_id, responseMessage);
-          console.log("📤 Response sent:", response);
+          
+          return res.status(200).json({ success: true });
         }
+
+        // Handle final completion for subscribers
+        if (isCompleteForSubscriber) {
+          const summaryMessage = `📋 Here's your subscription details:
+
+👤 Full Name: ${structuredData.fullname}
+🏘️ Block: ${structuredData.block}
+📍 Ward Number: ${structuredData.ward_number}
+🏠 Property Type: ${structuredData.property_type}
+🏡 Address: ${structuredData.address}
+🗑️ Bin Size: ${structuredData.bin_size}
+
+Your subscription is confirmed! Our team will contact you soon. 😊`;
+          
+          await sendTextMsg(sender_id, summaryMessage);
+          console.log("📋 Final summary sent for subscriber");
+          
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: summaryMessage,
+            message_type: 'text',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(structuredData)
+          });
+          
+          return res.status(200).json({ success: true });
+        }
+
+        // Send normal response for incomplete information
+        const response = await sendTextMsg(sender_id, responseMessage);
+        console.log("📤 Response sent:", response);
         
         // Save outgoing message to database
         try {
@@ -201,6 +272,77 @@ Our team will reach out to you soon! 😊`;
         
       } else {
         console.warn("⚠️ Empty text message received.");
+      }
+    }
+
+    // Handle interactive messages (bin size selection)
+    if (type === "interactive") {
+      const interactiveData = message?.interactive;
+      
+      if (interactiveData?.type === "list_reply") {
+        const selectedOption = interactiveData.list_reply;
+        console.log("🎯 User selected bin size:", selectedOption);
+        
+        // Get conversation context to update with bin size
+        const conversationContext = await ConversationService.getConversationContext(contact_id);
+        const lastMessages = await ConversationService.getLastMessages(contact_id, 10);
+        
+        // Find the last structured data
+        let lastKnownDetails = null;
+        for (let i = lastMessages.length - 1; i >= 0; i--) {
+          if (lastMessages[i].sender_type === 'agent' && lastMessages[i].details) {
+            lastKnownDetails = lastMessages[i].details;
+            break;
+          }
+        }
+        
+        // Update structured data with bin size
+        const updatedStructuredData = {
+          ...lastKnownDetails,
+          bin_size: selectedOption.id
+        };
+        
+        console.log("📊 Updated structured data with bin size:", updatedStructuredData);
+        
+        // Check if subscription is now complete
+        const isCompleteForSubscriber = updatedStructuredData && 
+          updatedStructuredData.fullname && 
+          updatedStructuredData.block && 
+          updatedStructuredData.ward_number && 
+          updatedStructuredData.property_type && 
+          updatedStructuredData.address && 
+          updatedStructuredData.wants_subscription === true &&
+          updatedStructuredData.bin_size;
+
+        if (isCompleteForSubscriber) {
+          const summaryMessage = `📋 Here's your subscription details:
+
+👤 Full Name: ${updatedStructuredData.fullname}
+🏘️ Block: ${updatedStructuredData.block}
+📍 Ward Number: ${updatedStructuredData.ward_number}
+🏠 Property Type: ${updatedStructuredData.property_type}
+🏡 Address: ${updatedStructuredData.address}
+🗑️ Bin Size: ${selectedOption.title}
+
+Your subscription is confirmed! Our team will contact you soon. 😊`;
+          
+          await sendTextMsg(sender_id, summaryMessage);
+          console.log("📋 Final subscription summary sent");
+          
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: summaryMessage,
+            message_type: 'text',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(updatedStructuredData)
+          });
+        }
       }
     }
 

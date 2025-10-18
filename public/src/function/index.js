@@ -196,4 +196,82 @@ const invoiceNoGen = async () => {
   return `INV0000001`;
 };
 
-export { sendTextMsg, markAsRead, sendFlowTemp, sendTemp, sendTempImage, orderNoGen, invoiceNoGen };
+const sendBinSizeTemplate = async (from) => {
+  try {
+    const options = {
+      method: "POST",
+      url: `${process.env.FBWA_URL}/send-message`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, application/xml",
+        Authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
+      },
+      data: {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: from,
+        type: "interactive",
+        interactive: {
+          type: "list",
+          body: {
+            text: "🗑️ Please select your preferred waste bin size:"
+          },
+          action: {
+            button: "Select Bin Size",
+            sections: [
+              {
+                title: "Waste Bin Sizes",
+                rows: [
+                  {
+                    id: "33ltr",
+                    title: "33 Liters",
+                    description: "Small household bin"
+                  },
+                  {
+                    id: "50ltr",
+                    title: "50 Liters",
+                    description: "Medium household bin"
+                  },
+                  {
+                    id: "120ltr",
+                    title: "120 Liters",
+                    description: "Large household bin"
+                  },
+                  {
+                    id: "500ltr",
+                    title: "500 Liters",
+                    description: "Commercial bin"
+                  },
+                  {
+                    id: "1000ltr",
+                    title: "1000 Liters",
+                    description: "Large commercial bin"
+                  },
+                  {
+                    id: "25kg",
+                    title: "25 KG",
+                    description: "Weight-based option"
+                  },
+                  {
+                    id: "50kg",
+                    title: "50 KG",
+                    description: "Heavy-duty option"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    };
+
+    const { data } = await axios.request(options);
+    console.log("✅ Bin size template sent:", data);
+    return data;
+  } catch (error) {
+    console.log({ error: error?.response?.data || error?.message });
+    throw error;
+  }
+};
+
+export { sendTextMsg, markAsRead, sendFlowTemp, sendTemp, sendTempImage, orderNoGen, invoiceNoGen, sendBinSizeTemplate };
