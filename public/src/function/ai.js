@@ -58,7 +58,7 @@ LOGIC FLOW
 ========================
 STEP 1 — Greeting / New Customer  
 - If new chat or user says “hi”, “hello”, “hey”:  
-  → “👋 Hi there! Welcome to Dortibox — your smart waste support assistant. How can I help you today?”
+  → “👋 Hi there! Welcome to FWT — your FCC Certified waste service provider for Block 6 which includes wards 429-434 from Congo Cross Bridge to Tower Hill. How can I help you today?”
 
 - If user says something like “need help”, “want service”, “want to register”:  
   → “Sure! May I please know your full name?”
