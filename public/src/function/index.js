@@ -666,4 +666,253 @@ const sendPropertyTypeTemplate = async (from) => {
   }
 };
 
-export { sendTextMsg, markAsRead, sendFlowTemp, sendTemp, sendTempImage, orderNoGen, invoiceNoGen, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser, fetchWards, fetchBlocks, sendWardNumberTemplate, sendPropertyTypeTemplate };
+// Function to get additional pickup days
+const getAdditionalPickupDays = (selectedDay) => {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const dayMap = {
+    'monday': 'Mon',
+    'tuesday': 'Tue', 
+    'wednesday': 'Wed',
+    'thursday': 'Thu',
+    'friday': 'Fri',
+    'saturday': 'Sat',
+    'sunday': 'Sun'
+  };
+  
+  const selectedDayShort = dayMap[selectedDay.toLowerCase()];
+  const selectedIndex = days.indexOf(selectedDayShort);
+  
+  // Get two additional days (one before and one after)
+  const additionalDays = [];
+  for (let i = 1; i <= 2; i++) {
+    const prevIndex = (selectedIndex - i + 7) % 7;
+    const nextIndex = (selectedIndex + i) % 7;
+    
+    if (i === 1) {
+      additionalDays.push(days[prevIndex]);
+    } else {
+      additionalDays.push(days[nextIndex]);
+    }
+  }
+  
+  return [selectedDayShort, ...additionalDays];
+};
+
+// Function to call frequency-with-price API
+const fetchFrequencyWithPrice = async (pickupDays, binSize) => {
+  try {
+    const options = {
+      method: "POST",
+      url: "https://dev-api.dortibox.com/get/frequency-with-price",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `${process.env.DORTIBOX_AUTH_TOKEN}`
+      },
+      data: {
+        pickupDays: pickupDays,
+        binSize: binSize
+      }
+    };
+
+    const { data } = await axios.request(options);
+    console.log("✅ Frequency with price fetched successfully:", data);
+    return data;
+  } catch (error) {
+    console.log({ error: error?.response?.data || error?.message });
+    throw error;
+  }
+};
+
+// Function to send pricing options template
+const sendPricingOptionsTemplate = async (from, pricingData) => {
+  try {
+    const rows = pricingData.map((option, index) => ({
+      id: `pricing_${option._id}`,
+      title: option.name,
+      description: `${option.currency} ${option.discountedPrice}${option.discountLable ? ` (${option.discountLable} off)` : ''}`
+    }));
+
+    const options = {
+      method: "POST",
+      url: `${process.env.FBWA_URL}/send-message`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, application/xml",
+        Authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
+      },
+      data: {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: from,
+        type: "interactive",
+        interactive: {
+          type: "list",
+          body: {
+            text: "💰 Please select your preferred pricing plan:"
+          },
+          action: {
+            button: "Select Plan",
+            sections: [
+              {
+                title: "Pricing Plans",
+                rows: rows
+              }
+            ]
+          }
+        }
+      }
+    };
+
+    const { data } = await axios.request(options);
+    console.log("✅ Pricing options template sent:", data);
+    return data;
+  } catch (error) {
+    console.log({ error: error?.response?.data || error?.message });
+    throw error;
+  }
+};
+
+// Function to send payment mode template
+const sendPaymentModeTemplate = async (from) => {
+  try {
+    const options = {
+      method: "POST",
+      url: `${process.env.FBWA_URL}/send-message`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, application/xml",
+        Authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
+      },
+      data: {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: from,
+        type: "interactive",
+        interactive: {
+          type: "button",
+          body: {
+            text: "💳 Please select your preferred payment method:"
+          },
+          action: {
+            buttons: [
+              {
+                type: "reply",
+                reply: {
+                  id: "payment_bank_transfer",
+                  title: "Bank Transfer"
+                }
+              },
+              {
+                type: "reply",
+                reply: {
+                  id: "payment_cheque",
+                  title: "Cheque"
+                }
+              }
+            ]
+          }
+        }
+      }
+    };
+
+    const { data } = await axios.request(options);
+    console.log("✅ Payment mode template sent:", data);
+    return data;
+  } catch (error) {
+    console.log({ error: error?.response?.data || error?.message });
+    throw error;
+  }
+};
+
+// Function to ask for payment transaction ID
+const askForPaymentTxId = async (from) => {
+  try {
+    const options = {
+      method: "POST",
+      url: `${process.env.FBWA_URL}/send-message`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, application/xml",
+        Authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
+      },
+      data: {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: from,
+        type: "text",
+        text: {
+          body: "📝 Please provide your payment transaction ID:"
+        }
+      }
+    };
+
+    const { data } = await axios.request(options);
+    console.log("✅ Payment transaction ID request sent:", data);
+    return data;
+  } catch (error) {
+    console.log({ error: error?.response?.data || error?.message });
+    throw error;
+  }
+};
+
+// Function to show customer all stored details
+const showCustomerDetails = async (from, customerData) => {
+  try {
+    const detailsText = `
+📋 *Your Order Summary*
+
+👤 *Customer Details:*
+• Name: ${customerData.userName || 'N/A'}
+• Mobile: ${customerData.mobile || 'N/A'}
+• Property Type: ${customerData.propertyType || 'N/A'}
+• Ward: ${customerData.ward || 'N/A'}
+• Block: ${customerData.block || 'N/A'}
+• House Number: ${customerData.houseNumber || 'N/A'}
+
+🗑️ *Service Details:*
+• Bin Size: ${customerData.binSize || 'N/A'}
+• Pickup Days: ${customerData.pickupDays ? customerData.pickupDays.join(', ') : 'N/A'}
+• Frequency: ${customerData.frequency || 'N/A'}
+
+💰 *Pricing:*
+• Plan: ${customerData.selectedPlan || 'N/A'}
+• Price: ${customerData.price || 'N/A'}
+• Currency: ${customerData.currency || 'N/A'}
+
+💳 *Payment:*
+• Method: ${customerData.paymentMethod || 'N/A'}
+• Transaction ID: ${customerData.paymentTxId || 'N/A'}
+
+Thank you for choosing our waste management service! 🎉
+    `;
+
+    const options = {
+      method: "POST",
+      url: `${process.env.FBWA_URL}/send-message`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, application/xml",
+        Authorization: `Bearer ${process.env.UPMATRIX_TOKEN}`,
+      },
+      data: {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: from,
+        type: "text",
+        text: {
+          body: detailsText
+        }
+      }
+    };
+
+    const { data } = await axios.request(options);
+    console.log("✅ Customer details sent:", data);
+    return data;
+  } catch (error) {
+    console.log({ error: error?.response?.data || error?.message });
+    throw error;
+  }
+};
+
+export { sendTextMsg, markAsRead, sendFlowTemp, sendTemp, sendTempImage, orderNoGen, invoiceNoGen, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser, fetchWards, fetchBlocks, sendWardNumberTemplate, sendPropertyTypeTemplate, getAdditionalPickupDays, fetchFrequencyWithPrice, sendPricingOptionsTemplate, sendPaymentModeTemplate, askForPaymentTxId, showCustomerDetails };

@@ -120,6 +120,63 @@ export default (sequelize, Sequelize) => {
             allowNull: true,
             comment: 'Structured data in JSON format (fullname, block, property_type, address, ward_number)'
         },
+        subscription_plan: {
+            type: Sequelize.STRING(100),
+            allowNull: true,
+            comment: 'Selected subscription plan name (e.g., "3 Month")'
+        },
+        subscription_plan_id: {
+            type: Sequelize.STRING(50),
+            allowNull: true,
+            comment: 'Selected subscription plan ID from API'
+        },
+        payment_method: {
+            type: Sequelize.STRING(50),
+            allowNull: true,
+            comment: 'Payment method (Bank Transfer, Cheque)'
+        },
+        payment_tx_id: {
+            type: Sequelize.STRING(100),
+            allowNull: true,
+            comment: 'Payment transaction ID provided by customer'
+        },
+        pickup_days: {
+            type: Sequelize.JSON,
+            allowNull: true,
+            comment: 'Selected pickup days array (e.g., ["Mon", "Sun", "Fri"])'
+        },
+        bin_size: {
+            type: Sequelize.STRING(50),
+            allowNull: true,
+            comment: 'Selected bin size (e.g., "120ltr", "500ltr")'
+        },
+        frequency: {
+            type: Sequelize.STRING(50),
+            allowNull: true,
+            comment: 'Pickup frequency (e.g., "1x_per_week", "2x_per_week")'
+        },
+        pricing_data: {
+            type: Sequelize.JSON,
+            allowNull: true,
+            comment: 'Complete pricing options from API response'
+        },
+        order_status: {
+            type: Sequelize.STRING(50),
+            allowNull: true,
+            defaultValue: 'pending',
+            comment: 'Order status (pending, confirmed, completed, cancelled)'
+        },
+        total_amount: {
+            type: Sequelize.DECIMAL(10, 2),
+            allowNull: true,
+            comment: 'Total amount for the subscription'
+        },
+        currency: {
+            type: Sequelize.STRING(10),
+            allowNull: true,
+            defaultValue: 'LE',
+            comment: 'Currency for the subscription'
+        },
         created_at: {
             type: Sequelize.DATE,
             allowNull: false,
@@ -147,6 +204,18 @@ export default (sequelize, Sequelize) => {
             },
             {
                 fields: ['created_at']
+            },
+            {
+                fields: ['subscription_plan_id']
+            },
+            {
+                fields: ['payment_tx_id']
+            },
+            {
+                fields: ['order_status']
+            },
+            {
+                fields: ['contact_id', 'order_status']
             }
         ]
     });

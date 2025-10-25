@@ -2,7 +2,7 @@ import axios from "axios";
 import FormData from "form-data";
 import asyncHandler from "../utils/asyncHandler.js"; 
 import apiResponse from "../utils/apiResponse.js";
-import { sendTextMsg, markAsRead, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser, fetchWards, fetchBlocks, sendWardNumberTemplate, sendPropertyTypeTemplate } from "../function/index.js";
+import { sendTextMsg, markAsRead, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser, fetchWards, fetchBlocks, sendWardNumberTemplate, sendPropertyTypeTemplate, getAdditionalPickupDays, fetchFrequencyWithPrice, sendPricingOptionsTemplate, sendPaymentModeTemplate, askForPaymentTxId, showCustomerDetails } from "../function/index.js";
 import ConversationService from "../services/conversation.service.js";
 import { chatGPT } from "../function/ai.js";
 
@@ -55,6 +55,68 @@ const webhook = asyncHandler(async (req, res) => {
           console.log("✅ Message marked as read:", whatsapp_message_id);
         } catch (markError) {
           console.error("❌ Error marking message as read:", markError.message);
+        }
+
+        // Check if user is providing payment transaction ID
+        const lastMessages = await ConversationService.getLastMessages(contact_id, 5);
+        let isPaymentTxIdExpected = false;
+        let lastKnownDetails = null;
+        
+        // Check if we're expecting a payment transaction ID
+        for (let i = lastMessages.length - 1; i >= 0; i--) {
+          if (lastMessages[i].sender_type === 'agent' && lastMessages[i].details) {
+            lastKnownDetails = lastMessages[i].details;
+            break;
+          }
+          if (lastMessages[i].message_content?.includes('Please provide your payment transaction ID')) {
+            isPaymentTxIdExpected = true;
+            break;
+          }
+        }
+        
+        if (isPaymentTxIdExpected && lastKnownDetails) {
+          // User is providing payment transaction ID
+          const updatedStructuredData = {
+            ...lastKnownDetails,
+            payment_tx_id: textMsg
+          };
+          
+          console.log("📊 Updated with payment transaction ID:", textMsg);
+          
+          // Save the payment transaction ID
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: `Payment Transaction ID: ${textMsg}`,
+            message_type: 'text',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(updatedStructuredData)
+          });
+          
+          // Show customer all stored details
+          await showCustomerDetails(sender_id, updatedStructuredData);
+          
+          // Save the final customer details message
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: "📋 Order summary sent to customer",
+            message_type: 'text',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(updatedStructuredData)
+          });
+          
+          return res.status(200).json({ success: true });
         }
 
         // Get conversation history and format for AI
@@ -562,9 +624,11 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
           await sendPickupDaysTemplate(sender_id);
           
         } else if (['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].includes(selectedOption.id)) {
-          // Pickup day selection - simple handling
-          updatedStructuredData.pickup_days = [selectedOption.id];
-          console.log("📊 Updated pickup days:", selectedOption.id);
+          // Pickup day selection - new flow with API call
+          const selectedDay = selectedOption.id;
+          const additionalDays = getAdditionalPickupDays(selectedDay);
+          updatedStructuredData.pickup_days = additionalDays;
+          console.log("📊 Updated pickup days:", additionalDays);
           
           // Save the pickup day selection
           await ConversationService.saveOutgoingMessage({
@@ -581,8 +645,37 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
             structured_data: JSON.stringify(updatedStructuredData)
           });
           
-          // Send big purchase template next
-          await sendBigPurchaseTemplate(sender_id);
+          try {
+            // Call frequency-with-price API
+            const binSizeId = "68ad2f1c75c595c6aa920445"; // Default bin size ID as mentioned
+            const pricingData = await fetchFrequencyWithPrice(additionalDays, binSizeId);
+            
+            // Store pricing data in structured data
+            updatedStructuredData.pricing_options = pricingData;
+            updatedStructuredData.bin_size_id = binSizeId;
+            
+            // Send pricing options template
+            await sendPricingOptionsTemplate(sender_id, pricingData);
+            
+            // Save the pricing options message
+            await ConversationService.saveOutgoingMessage({
+              contact_id,
+              sender_id: 'system',
+              receiver_id: sender_id,
+              message_content: "💰 Please select your preferred pricing plan from the options above.",
+              message_type: 'template',
+              status: 'sent',
+              thread_id,
+              contact_name: contact?.name,
+              contact_phone: contact?.phone_no,
+              contact_wa_id: contact?.wa_id,
+              structured_data: JSON.stringify(updatedStructuredData)
+            });
+            
+          } catch (error) {
+            console.error("❌ Error fetching pricing options:", error);
+            await sendTextMsg(sender_id, "❌ Sorry, there was an error fetching pricing options. Please try again.");
+          }
           
           return res.status(200).json({ success: true });
         } else if (['429', '430', '431', '432', '433', '434'].includes(selectedOption.id)) {
@@ -647,6 +740,51 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
           });
           
           return res.status(200).json({ success: true });
+        } else if (selectedOption.id.startsWith('pricing_')) {
+          // Pricing plan selection
+          const planId = selectedOption.id.replace('pricing_', '');
+          const selectedPlan = updatedStructuredData.pricing_options?.find(plan => plan._id === planId);
+          
+          if (selectedPlan) {
+            updatedStructuredData.selected_plan = selectedPlan;
+            updatedStructuredData.selected_plan_id = planId;
+            console.log("📊 Updated with selected plan:", selectedPlan.name);
+            
+            // Save the pricing plan selection
+            await ConversationService.saveOutgoingMessage({
+              contact_id,
+              sender_id: 'system',
+              receiver_id: sender_id,
+              message_content: `Selected pricing plan: ${selectedPlan.name}`,
+              message_type: 'template',
+              status: 'sent',
+              thread_id,
+              contact_name: contact?.name,
+              contact_phone: contact?.phone_no,
+              contact_wa_id: contact?.wa_id,
+              structured_data: JSON.stringify(updatedStructuredData)
+            });
+            
+            // Send payment mode template
+            await sendPaymentModeTemplate(sender_id);
+            
+            // Save the payment mode message
+            await ConversationService.saveOutgoingMessage({
+              contact_id,
+              sender_id: 'system',
+              receiver_id: sender_id,
+              message_content: "💳 Please select your preferred payment method from the options above.",
+              message_type: 'template',
+              status: 'sent',
+              thread_id,
+              contact_name: contact?.name,
+              contact_phone: contact?.phone_no,
+              contact_wa_id: contact?.wa_id,
+              structured_data: JSON.stringify(updatedStructuredData)
+            });
+          }
+          
+          return res.status(200).json({ success: true });
         }
         
         // Save the updated data
@@ -665,7 +803,7 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
         });
         
       } else if (interactiveData?.type === "button_reply") {
-        // Handle button replies (big purchase yes/no)
+        // Handle button replies (big purchase yes/no, payment mode)
         const buttonReply = interactiveData.button_reply;
         console.log("🎯 User clicked button:", buttonReply);
         
@@ -679,32 +817,32 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
           }
         }
         
-        const updatedStructuredData = {
-          ...lastKnownDetails,
-          big_purchase: buttonReply.id === 'big_purchase_yes'
-        };
+        const updatedStructuredData = { ...lastKnownDetails };
         
-        console.log("📊 Updated with big purchase decision:", updatedStructuredData.big_purchase);
-        
-        // Check if subscription is now complete
-        const isCompleteForSubscriber = updatedStructuredData && 
-          updatedStructuredData.fullname && 
-          updatedStructuredData.block && 
-          updatedStructuredData.ward_number && 
-          updatedStructuredData.property_type && 
-          updatedStructuredData.address && 
-          updatedStructuredData.wants_subscription === true &&
-          updatedStructuredData.bin_size &&
-          updatedStructuredData.frequency &&
-          updatedStructuredData.pickup_days &&
-          updatedStructuredData.pickup_days.length > 0 &&
-          updatedStructuredData.big_purchase !== null;
-
-        if (isCompleteForSubscriber) {
-          const pickupDaysText = updatedStructuredData.pickup_days.join(', ');
-          const bigPurchaseText = updatedStructuredData.big_purchase ? 'Yes' : 'No';
+        if (buttonReply.id === 'big_purchase_yes' || buttonReply.id === 'big_purchase_no') {
+          // Handle big purchase decision
+          updatedStructuredData.big_purchase = buttonReply.id === 'big_purchase_yes';
+          console.log("📊 Updated with big purchase decision:", updatedStructuredData.big_purchase);
           
-          const summaryMessage = `📋 Here's your subscription details:
+          // Check if subscription is now complete
+          const isCompleteForSubscriber = updatedStructuredData && 
+            updatedStructuredData.fullname && 
+            updatedStructuredData.block && 
+            updatedStructuredData.ward_number && 
+            updatedStructuredData.property_type && 
+            updatedStructuredData.address && 
+            updatedStructuredData.wants_subscription === true &&
+            updatedStructuredData.bin_size &&
+            updatedStructuredData.frequency &&
+            updatedStructuredData.pickup_days &&
+            updatedStructuredData.pickup_days.length > 0 &&
+            updatedStructuredData.big_purchase !== null;
+
+          if (isCompleteForSubscriber) {
+            const pickupDaysText = updatedStructuredData.pickup_days.join(', ');
+            const bigPurchaseText = updatedStructuredData.big_purchase ? 'Yes' : 'No';
+            
+            const summaryMessage = `📋 Here's your subscription details:
 
 👤 Full Name: ${updatedStructuredData.fullname}
 🏘️ Block: ${updatedStructuredData.block}
@@ -717,15 +855,53 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
 🛒 Additional Services: ${bigPurchaseText}
 
 Your subscription is confirmed! Our team will contact you soon. 😊`;
+            
+            await sendTextMsg(sender_id, summaryMessage);
+            console.log("📋 Final subscription summary sent");
+            
+            await ConversationService.saveOutgoingMessage({
+              contact_id,
+              sender_id: 'system',
+              receiver_id: sender_id,
+              message_content: summaryMessage,
+              message_type: 'text',
+              status: 'sent',
+              thread_id,
+              contact_name: contact?.name,
+              contact_phone: contact?.phone_no,
+              contact_wa_id: contact?.wa_id,
+              structured_data: JSON.stringify(updatedStructuredData)
+            });
+          }
+        } else if (buttonReply.id === 'payment_bank_transfer' || buttonReply.id === 'payment_cheque') {
+          // Handle payment mode selection
+          updatedStructuredData.payment_method = buttonReply.id === 'payment_bank_transfer' ? 'Bank Transfer' : 'Cheque';
+          console.log("📊 Updated with payment method:", updatedStructuredData.payment_method);
           
-          await sendTextMsg(sender_id, summaryMessage);
-          console.log("📋 Final subscription summary sent");
-          
+          // Save the payment method selection
           await ConversationService.saveOutgoingMessage({
             contact_id,
             sender_id: 'system',
             receiver_id: sender_id,
-            message_content: summaryMessage,
+            message_content: `Selected payment method: ${updatedStructuredData.payment_method}`,
+            message_type: 'template',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(updatedStructuredData)
+          });
+          
+          // Ask for payment transaction ID
+          await askForPaymentTxId(sender_id);
+          
+          // Save the payment transaction ID request
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: "📝 Please provide your payment transaction ID:",
             message_type: 'text',
             status: 'sent',
             thread_id,
