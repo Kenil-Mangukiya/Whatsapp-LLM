@@ -474,7 +474,7 @@ const fetchWards = async (blockId) => {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MzQzZTI4MjczYjcwYmNkNmZlODIzNSIsInVzZXJOYW1lIjoiY2hpcmFnQGFkbWluLmNvbSIsInR5cGUiOiJBRE1JTiIsImlhdCI6MTc2MDc3MTEzMiwiZXhwIjoxNzYwODA3MTMyfQ.p3t5UD89VwBw26hweaSCARxegbW7x6aDBHU8T_9r2O8"
+        Authorization: process.env.DORTIBOX_AUTH_TOKEN 
       }
     };
 
@@ -495,7 +495,7 @@ const fetchBlocks = async () => {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MzQzZTI4MjczYjcwYmNkNmZlODIzNSIsInVzZXJOYW1lIjoiY2hpcmFnQGFkbWluLmNvbSIsInR5cGUiOiJBRE1JTiIsImlhdCI6MTc2MDc3MTEzMiwiZXhwIjoxNzYwODA3MTMyfQ.p3t5UD89VwBw26hweaSCARxegbW7x6aDBHU8T_9r2O8"
+        Authorization: process.env.DORTIBOX_AUTH_TOKEN 
       }
     };
 
