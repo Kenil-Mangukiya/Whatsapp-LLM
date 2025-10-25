@@ -873,11 +873,11 @@ const createSubscription = async (subscriptionData) => {
   try {
     const payload = {
       addressId: "68fc63b42d176dd5a6e80a16", // Fixed address ID
-      binSize: subscriptionData.binSizeId,
+      binSize: subscriptionData.bin_size_id || subscriptionData.binSizeId,
       frequencyId: "6835a191289e45ec68bb74e6", // Fixed frequency ID
       isBinPurchase: subscriptionData.big_purchase || false, // Dynamic value from Big Purchase? template
-      pickupSchedule: subscriptionData.pickupDays,
-      price: subscriptionData.selectedPlan.discountedPrice,
+      pickupSchedule: subscriptionData.pickup_days || subscriptionData.pickupDays,
+      price: subscriptionData.selected_plan?.discountedPrice || subscriptionData.selectedPlan?.discountedPrice || 5265,
       referralCode: "",
       userId: "68fc62c52d176dd5a6e80823" // Fixed user ID
     };
@@ -915,8 +915,8 @@ const createSubscription = async (subscriptionData) => {
 const createTransaction = async (transactionData) => {
   try {
     const payload = {
-      paymentMode: transactionData.paymentMethod === 'Bank Transfer' ? 'BANK_TRANSFER' : 'CHEQUE',
-      paymentTxId: transactionData.paymentTxId,
+      paymentMode: (transactionData.payment_method === 'Bank Transfer' || transactionData.paymentMethod === 'Bank Transfer') ? 'BANK_TRANSFER' : 'CHEQUE',
+      paymentTxId: transactionData.payment_tx_id || transactionData.paymentTxId,
       subscriptionId: transactionData.subscriptionId,
       userId: "68fc62c52d176dd5a6e80823" // Fixed user ID
     };
