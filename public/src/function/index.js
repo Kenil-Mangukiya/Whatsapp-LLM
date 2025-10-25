@@ -474,7 +474,7 @@ const fetchWards = async (blockId) => {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        Authorization: process.env.DORTIBOX_AUTH_TOKEN 
+        Authorization: `${process.env.DORTIBOX_AUTH_TOKEN}`
       }
     };
 
@@ -495,7 +495,7 @@ const fetchBlocks = async () => {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        Authorization: process.env.DORTIBOX_AUTH_TOKEN 
+        Authorization: `${process.env.DORTIBOX_AUTH_TOKEN}`
       }
     };
 
@@ -520,7 +520,7 @@ const createUser = async (userData) => {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        Authorization: process.env.DORTIBOX_AUTH_TOKEN 
+        Authorization: `${process.env.DORTIBOX_AUTH_TOKEN}`
       },
       data: {
         countryCode: userData.countryCode || "+232",
