@@ -71,16 +71,19 @@ const webhook = asyncHandler(async (req, res) => {
         
         // Check if we're expecting a payment transaction ID
         for (let i = lastMessages.length - 1; i >= 0; i--) {
-          if (lastMessages[i].sender_type === 'agent' && lastMessages[i].details) {
-            lastKnownDetails = lastMessages[i].details;
-            console.log("📊 Found last known details:", lastKnownDetails);
-            break;
-          }
           if (lastMessages[i].message_content?.includes('Please provide your payment transaction ID') || 
               lastMessages[i].message_content?.includes('📝 Please provide your payment transaction ID') ||
               lastMessages[i].message_content?.includes('payment transaction ID')) {
             isPaymentTxIdExpected = true;
             console.log("✅ Payment transaction ID expected!");
+            // Look for structured data in previous messages
+            for (let j = i - 1; j >= 0; j--) {
+              if (lastMessages[j].details) {
+                lastKnownDetails = lastMessages[j].details;
+                console.log("📊 Found last known details:", lastKnownDetails);
+                break;
+              }
+            }
             break;
           }
         }
@@ -94,6 +97,19 @@ const webhook = asyncHandler(async (req, res) => {
           isPaymentTxIdExpected = true;
         }
         
+        // Additional fallback: Get structured data from conversation history if not found
+        if (isPaymentTxIdExpected && !lastKnownDetails) {
+          console.log("🔄 Additional fallback: Looking for structured data in conversation history...");
+          const conversationHistory = await ConversationService.getLastMessages(contact_id, 10);
+          for (let msg of conversationHistory) {
+            if (msg.details && msg.details.payment_method) {
+              lastKnownDetails = msg.details;
+              console.log("📊 Found structured data in conversation history:", lastKnownDetails);
+              break;
+            }
+          }
+        }
+        
         if (isPaymentTxIdExpected && lastKnownDetails) {
           // User is providing payment transaction ID
           const updatedStructuredData = {
@@ -102,6 +118,23 @@ const webhook = asyncHandler(async (req, res) => {
           };
           
           console.log("📊 Updated with payment transaction ID:", textMsg);
+          console.log("📊 Complete structured data:", updatedStructuredData);
+          
+          // Check if we have all required data for subscription API
+          const hasRequiredData = updatedStructuredData.bin_size_id && 
+                                 updatedStructuredData.pickup_days && 
+                                 updatedStructuredData.selected_plan;
+          
+          if (!hasRequiredData) {
+            console.log("❌ Missing required data for subscription API");
+            console.log("📊 Missing data check:", {
+              bin_size_id: !!updatedStructuredData.bin_size_id,
+              pickup_days: !!updatedStructuredData.pickup_days,
+              selected_plan: !!updatedStructuredData.selected_plan
+            });
+            await sendTextMsg(sender_id, "❌ Sorry, some required information is missing. Please contact support.");
+            return res.status(200).json({ success: true });
+          }
           
           // Save the payment transaction ID
           await ConversationService.saveOutgoingMessage({
