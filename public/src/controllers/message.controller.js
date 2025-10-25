@@ -233,24 +233,6 @@ const webhook = asyncHandler(async (req, res) => {
             await sendTextMsg(sender_id, "❌ Sorry, there was an error processing your subscription. Please contact support.");
           }
           
-          // Show customer all stored details
-          await showCustomerDetails(sender_id, updatedStructuredData);
-          
-          // Save the final customer details message
-          await ConversationService.saveOutgoingMessage({
-            contact_id,
-            sender_id: 'system',
-            receiver_id: sender_id,
-            message_content: "📋 Order summary sent to customer",
-            message_type: 'text',
-            status: 'sent',
-            thread_id,
-            contact_name: contact?.name,
-            contact_phone: contact?.phone_no,
-            contact_wa_id: contact?.wa_id,
-            structured_data: JSON.stringify(updatedStructuredData)
-          });
-          
           return res.status(200).json({ success: true });
         }
 
