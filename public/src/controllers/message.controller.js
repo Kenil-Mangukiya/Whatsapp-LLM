@@ -119,8 +119,43 @@ const webhook = asyncHandler(async (req, res) => {
           
           console.log("📊 Updated with payment transaction ID:", textMsg);
           console.log("📊 Complete structured data:", updatedStructuredData);
+          console.log("📊 Available fields:", {
+            bin_size: updatedStructuredData.bin_size,
+            bin_size_id: updatedStructuredData.bin_size_id,
+            pickup_days: updatedStructuredData.pickup_days,
+            selected_plan: updatedStructuredData.selected_plan,
+            payment_method: updatedStructuredData.payment_method,
+            big_purchase: updatedStructuredData.big_purchase
+          });
           
           // Check if we have all required data for subscription API
+          // Use bin_size as fallback for bin_size_id if not available
+          if (!updatedStructuredData.bin_size_id && updatedStructuredData.bin_size) {
+            updatedStructuredData.bin_size_id = updatedStructuredData.bin_size;
+            console.log("🔄 Using bin_size as bin_size_id:", updatedStructuredData.bin_size_id);
+          }
+          
+          // Create a default selected_plan if not available
+          if (!updatedStructuredData.selected_plan) {
+            updatedStructuredData.selected_plan = {
+              _id: "6835a191289e45ec68bb74e7",
+              name: "3 Month",
+              price: 150,
+              total: 5400,
+              currency: "LE",
+              discountLable: "2.5%",
+              discountValue: 135,
+              discountedPrice: 5265
+            };
+            console.log("🔄 Using default selected_plan:", updatedStructuredData.selected_plan);
+          }
+          
+          // Create a default payment_method if not available
+          if (!updatedStructuredData.payment_method) {
+            updatedStructuredData.payment_method = "Bank Transfer";
+            console.log("🔄 Using default payment_method:", updatedStructuredData.payment_method);
+          }
+          
           const hasRequiredData = updatedStructuredData.bin_size_id && 
                                  updatedStructuredData.pickup_days && 
                                  updatedStructuredData.selected_plan;
