@@ -223,39 +223,39 @@ const sendBinSizeTemplate = async (from) => {
                 title: "Waste Bin Sizes",
                 rows: [
                   {
-                    id: "33ltr",
-                    title: "33 Liters",
-                    description: "Small household bin"
+                    id: "68353e33273b70bcd6fe82b7",
+                    title: "300 Ltr",
+                    description: "300 Liter bin"
                   },
                   {
-                    id: "50ltr",
-                    title: "50 Liters",
-                    description: "Medium household bin"
+                    id: "68353e72273b70bcd6fe82bb",
+                    title: "1000 Ltr",
+                    description: "1000 Liter bin"
                   },
                   {
-                    id: "120ltr",
-                    title: "120 Liters",
-                    description: "Large household bin"
+                    id: "686ccd0b2b9930cde0a06eb2",
+                    title: "500 Ltr",
+                    description: "500 Liter bin"
                   },
                   {
-                    id: "500ltr",
-                    title: "500 Liters",
-                    description: "Commercial bin"
+                    id: "68ad2ec575c595c6aa920425",
+                    title: "120 Ltr",
+                    description: "120 Liter bin"
                   },
                   {
-                    id: "1000ltr",
-                    title: "1000 Liters",
-                    description: "Large commercial bin"
-                  },
-                  {
-                    id: "25kg",
+                    id: "68ad2edc75c595c6aa92042d",
                     title: "25 KG",
-                    description: "Weight-based option"
+                    description: "25 KG bin"
                   },
                   {
-                    id: "50kg",
+                    id: "68ad2ef475c595c6aa920435",
                     title: "50 KG",
-                    description: "Heavy-duty option"
+                    description: "50 KG bin"
+                  },
+                  {
+                    id: "68ad2f0975c595c6aa92043d",
+                    title: "50 Ltr",
+                    description: "50 Liter bin"
                   }
                 ]
               }
@@ -433,7 +433,7 @@ const sendBigPurchaseTemplate = async (from) => {
         interactive: {
           type: "button",
           body: {
-            text: "🛒 Would you like to purchase additional waste management services or products?"
+            text: "Big Purchase?"
           },
           action: {
             buttons: [
@@ -458,7 +458,7 @@ const sendBigPurchaseTemplate = async (from) => {
     };
 
     const { data } = await axios.request(options);
-    console.log("✅ Big purchase template sent:", data);
+    console.log("✅ Big Purchase? template sent:", data);
     return data;
   } catch (error) {
     console.log({ error: error?.response?.data || error?.message });
@@ -868,6 +868,87 @@ const askForPaymentTxId = async (from) => {
   }
 };
 
+// Function to create subscription
+const createSubscription = async (subscriptionData) => {
+  try {
+    const payload = {
+      addressId: "68fc63b42d176dd5a6e80a16", // Fixed address ID
+      binSize: subscriptionData.binSizeId,
+      frequencyId: "6835a191289e45ec68bb74e6", // Fixed frequency ID
+      isBinPurchase: subscriptionData.big_purchase || false, // Dynamic value from Big Purchase? template
+      pickupSchedule: subscriptionData.pickupDays,
+      price: subscriptionData.selectedPlan.discountedPrice,
+      referralCode: "",
+      userId: "68fc62c52d176dd5a6e80823" // Fixed user ID
+    };
+
+    console.log("🚀 Calling Dortibox Subscription API: https://dev-api.dortibox.com/subscription");
+    console.log("📤 Subscription payload:", JSON.stringify(payload, null, 2));
+    console.log("🛒 Big Purchase decision:", subscriptionData.big_purchase ? "Yes" : "No");
+    console.log("🔑 Using Auth Token:", process.env.DORTIBOX_AUTH_TOKEN ? "Token present" : "Token missing");
+
+    const options = {
+      method: "POST",
+      url: "https://dev-api.dortibox.com/subscription",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `${process.env.DORTIBOX_AUTH_TOKEN}`
+      },
+      data: payload
+    };
+
+    const { data } = await axios.request(options);
+    console.log("✅ Subscription created successfully");
+    console.log("📥 Subscription response:", JSON.stringify(data, null, 2));
+    return data;
+  } catch (error) {
+    console.log("❌ Error creating subscription:");
+    console.log("📤 Payload that failed:", JSON.stringify(subscriptionData, null, 2));
+    console.log("📥 Error response:", error?.response?.data || error?.message);
+    console.log("📊 Error status:", error?.response?.status);
+    throw error;
+  }
+};
+
+// Function to create transaction
+const createTransaction = async (transactionData) => {
+  try {
+    const payload = {
+      paymentMode: transactionData.paymentMethod === 'Bank Transfer' ? 'BANK_TRANSFER' : 'CHEQUE',
+      paymentTxId: transactionData.paymentTxId,
+      subscriptionId: transactionData.subscriptionId,
+      userId: "68fc62c52d176dd5a6e80823" // Fixed user ID
+    };
+
+    console.log("🚀 Calling Dortibox Transaction API: https://dev-api.dortibox.com/create/transaction");
+    console.log("📤 Transaction payload:", JSON.stringify(payload, null, 2));
+    console.log("🔑 Using Auth Token:", process.env.DORTIBOX_AUTH_TOKEN ? "Token present" : "Token missing");
+
+    const options = {
+      method: "POST",
+      url: "https://dev-api.dortibox.com/create/transaction",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `${process.env.DORTIBOX_AUTH_TOKEN}`
+      },
+      data: payload
+    };
+
+    const { data } = await axios.request(options);
+    console.log("✅ Transaction created successfully");
+    console.log("📥 Transaction response:", JSON.stringify(data, null, 2));
+    return data;
+  } catch (error) {
+    console.log("❌ Error creating transaction:");
+    console.log("📤 Payload that failed:", JSON.stringify(transactionData, null, 2));
+    console.log("📥 Error response:", error?.response?.data || error?.message);
+    console.log("📊 Error status:", error?.response?.status);
+    throw error;
+  }
+};
+
 // Function to show customer all stored details
 const showCustomerDetails = async (from, customerData) => {
   try {
@@ -927,4 +1008,4 @@ Thank you for choosing our waste management service! 🎉
   }
 };
 
-export { sendTextMsg, markAsRead, sendFlowTemp, sendTemp, sendTempImage, orderNoGen, invoiceNoGen, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser, fetchWards, fetchBlocks, sendWardNumberTemplate, sendPropertyTypeTemplate, getAdditionalPickupDays, fetchFrequencyWithPrice, sendPricingOptionsTemplate, sendPaymentModeTemplate, askForPaymentTxId, showCustomerDetails };
+export { sendTextMsg, markAsRead, sendFlowTemp, sendTemp, sendTempImage, orderNoGen, invoiceNoGen, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser, fetchWards, fetchBlocks, sendWardNumberTemplate, sendPropertyTypeTemplate, getAdditionalPickupDays, fetchFrequencyWithPrice, sendPricingOptionsTemplate, sendPaymentModeTemplate, askForPaymentTxId, showCustomerDetails, createSubscription, createTransaction };

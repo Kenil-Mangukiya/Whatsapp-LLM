@@ -2,7 +2,7 @@ import axios from "axios";
 import FormData from "form-data";
 import asyncHandler from "../utils/asyncHandler.js"; 
 import apiResponse from "../utils/apiResponse.js";
-import { sendTextMsg, markAsRead, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser, fetchWards, fetchBlocks, sendWardNumberTemplate, sendPropertyTypeTemplate, getAdditionalPickupDays, fetchFrequencyWithPrice, sendPricingOptionsTemplate, sendPaymentModeTemplate, askForPaymentTxId, showCustomerDetails } from "../function/index.js";
+import { sendTextMsg, markAsRead, sendBinSizeTemplate, sendFrequencyTemplate, sendPickupDaysTemplate, sendBigPurchaseTemplate, createUser, fetchWards, fetchBlocks, sendWardNumberTemplate, sendPropertyTypeTemplate, getAdditionalPickupDays, fetchFrequencyWithPrice, sendPricingOptionsTemplate, sendPaymentModeTemplate, askForPaymentTxId, showCustomerDetails, createSubscription, createTransaction } from "../function/index.js";
 import ConversationService from "../services/conversation.service.js";
 import { chatGPT } from "../function/ai.js";
 
@@ -97,6 +97,42 @@ const webhook = asyncHandler(async (req, res) => {
             contact_wa_id: contact?.wa_id,
             structured_data: JSON.stringify(updatedStructuredData)
           });
+          
+          try {
+            // Call subscription API
+            console.log("🚀 Creating subscription...");
+            const subscriptionResponse = await createSubscription(updatedStructuredData);
+            
+            if (subscriptionResponse && subscriptionResponse.result) {
+              const subscriptionId = subscriptionResponse.result._id;
+              console.log("✅ Subscription created with ID:", subscriptionId);
+              
+              // Call transaction API
+              console.log("🚀 Creating transaction...");
+              const transactionData = {
+                ...updatedStructuredData,
+                subscriptionId: subscriptionId
+              };
+              
+              const transactionResponse = await createTransaction(transactionData);
+              console.log("✅ Transaction created successfully");
+              
+              // Update structured data with subscription and transaction info
+              updatedStructuredData.subscription_id = subscriptionId;
+              updatedStructuredData.subscription_response = subscriptionResponse;
+              updatedStructuredData.transaction_response = transactionResponse;
+              
+              // Show success message
+              await sendTextMsg(sender_id, "🎉 Your subscription has been created successfully! Your order is now confirmed.");
+              
+            } else {
+              throw new Error("Invalid subscription response");
+            }
+            
+          } catch (error) {
+            console.error("❌ Error creating subscription/transaction:", error);
+            await sendTextMsg(sender_id, "❌ Sorry, there was an error processing your subscription. Please contact support.");
+          }
           
           // Show customer all stored details
           await showCustomerDetails(sender_id, updatedStructuredData);
@@ -606,10 +642,12 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
         // Determine what was selected based on the option ID
         let updatedStructuredData = { ...lastKnownDetails };
         
-        if (selectedOption.id.includes('ltr') || selectedOption.id.includes('kg')) {
-          // Bin size selection
+        if (selectedOption.id.startsWith('68')) {
+          // Bin size selection - new format with actual IDs
           updatedStructuredData.bin_size = selectedOption.id;
-          console.log("📊 Updated with bin size:", selectedOption.id);
+          updatedStructuredData.bin_size_id = selectedOption.id;
+          console.log("📊 Updated with bin size ID:", selectedOption.id);
+          console.log("📊 Bin size title:", selectedOption.title);
           
           // Send frequency template next
           await sendFrequencyTemplate(sender_id);
