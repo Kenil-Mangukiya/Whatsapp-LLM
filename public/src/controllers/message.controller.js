@@ -62,16 +62,36 @@ const webhook = asyncHandler(async (req, res) => {
         let isPaymentTxIdExpected = false;
         let lastKnownDetails = null;
         
+        console.log("🔍 Checking for payment transaction ID expectation...");
+        console.log("📋 Last messages:", lastMessages.map(msg => ({
+          content: msg.message_content,
+          sender: msg.sender_type,
+          hasDetails: !!msg.details
+        })));
+        
         // Check if we're expecting a payment transaction ID
         for (let i = lastMessages.length - 1; i >= 0; i--) {
           if (lastMessages[i].sender_type === 'agent' && lastMessages[i].details) {
             lastKnownDetails = lastMessages[i].details;
+            console.log("📊 Found last known details:", lastKnownDetails);
             break;
           }
-          if (lastMessages[i].message_content?.includes('Please provide your payment transaction ID')) {
+          if (lastMessages[i].message_content?.includes('Please provide your payment transaction ID') || 
+              lastMessages[i].message_content?.includes('📝 Please provide your payment transaction ID') ||
+              lastMessages[i].message_content?.includes('payment transaction ID')) {
             isPaymentTxIdExpected = true;
+            console.log("✅ Payment transaction ID expected!");
             break;
           }
+        }
+        
+        console.log("🔍 Payment TX ID expected:", isPaymentTxIdExpected);
+        console.log("🔍 Last known details available:", !!lastKnownDetails);
+        
+        // Fallback: Check if user has completed payment method selection but not transaction ID
+        if (!isPaymentTxIdExpected && lastKnownDetails && lastKnownDetails.payment_method && !lastKnownDetails.payment_tx_id) {
+          console.log("🔄 Fallback: User has payment method but no transaction ID - expecting payment TX ID");
+          isPaymentTxIdExpected = true;
         }
         
         if (isPaymentTxIdExpected && lastKnownDetails) {
@@ -101,6 +121,12 @@ const webhook = asyncHandler(async (req, res) => {
           try {
             // Call subscription API
             console.log("🚀 Creating subscription...");
+            console.log("📊 Subscription data being sent:", {
+              binSizeId: updatedStructuredData.bin_size_id,
+              pickupDays: updatedStructuredData.pickup_days,
+              selectedPlan: updatedStructuredData.selected_plan,
+              bigPurchase: updatedStructuredData.big_purchase
+            });
             const subscriptionResponse = await createSubscription(updatedStructuredData);
             
             if (subscriptionResponse && subscriptionResponse.result) {
