@@ -12,9 +12,9 @@ import { Sequelize } from 'sequelize';
 // Your specific database configuration
 const dbConfig = {
   username: 'root',
-  password: 'Kenil@333',
-  database: 'whatsapp_llm',
-  host: 'localhost',
+  password: 'Yogreet@802',
+  database: 'whatsapp',
+  host: '127.0.0.1',
   port: 3306,
   dialect: 'mysql',
   logging: false
