@@ -20,7 +20,7 @@ const dbConfig = {
   logging: false
 };
 
-console.log('🧪 Testing database update for whatsapp_llm...');
+console.log('🧪 Testing database update for whatsapp...');
 
 const sequelize = new Sequelize(dbConfig.database, dbConfig.username, dbConfig.password, {
   host: dbConfig.host,
@@ -39,7 +39,7 @@ async function testDatabaseUpdate() {
     const [tableCheck] = await sequelize.query(`
       SELECT COUNT(*) as count 
       FROM information_schema.tables 
-      WHERE table_schema = 'whatsapp_llm' 
+      WHERE table_schema = 'whatsapp' 
       AND table_name = 'conversations'
     `);
 
@@ -72,7 +72,7 @@ async function testDatabaseUpdate() {
       const [columnCheck] = await sequelize.query(`
         SELECT COUNT(*) as count 
         FROM information_schema.columns 
-        WHERE table_schema = 'whatsapp_llm' 
+        WHERE table_schema = 'whatsapp' 
         AND table_name = 'conversations' 
         AND column_name = '${columnName}'
       `);
@@ -99,7 +99,7 @@ async function testDatabaseUpdate() {
       const [indexCheck] = await sequelize.query(`
         SELECT COUNT(*) as count 
         FROM information_schema.statistics 
-        WHERE table_schema = 'whatsapp_llm' 
+        WHERE table_schema = 'whatsapp' 
         AND table_name = 'conversations' 
         AND index_name = '${indexName}'
       `);
