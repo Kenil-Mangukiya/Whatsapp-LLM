@@ -624,7 +624,7 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
           await sendPickupDaysTemplate(sender_id);
           
         } else if (['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].includes(selectedOption.id)) {
-          // Pickup day selection - new flow with API call
+          // Pickup day selection - store days and ask for big purchase
           const selectedDay = selectedOption.id;
           const additionalDays = getAdditionalPickupDays(selectedDay);
           updatedStructuredData.pickup_days = additionalDays;
@@ -645,37 +645,23 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
             structured_data: JSON.stringify(updatedStructuredData)
           });
           
-          try {
-            // Call frequency-with-price API
-            const binSizeId = "68ad2f1c75c595c6aa920445"; // Default bin size ID as mentioned
-            const pricingData = await fetchFrequencyWithPrice(additionalDays, binSizeId);
-            
-            // Store pricing data in structured data
-            updatedStructuredData.pricing_options = pricingData;
-            updatedStructuredData.bin_size_id = binSizeId;
-            
-            // Send pricing options template
-            await sendPricingOptionsTemplate(sender_id, pricingData);
-            
-            // Save the pricing options message
-            await ConversationService.saveOutgoingMessage({
-              contact_id,
-              sender_id: 'system',
-              receiver_id: sender_id,
-              message_content: "💰 Please select your preferred pricing plan from the options above.",
-              message_type: 'template',
-              status: 'sent',
-              thread_id,
-              contact_name: contact?.name,
-              contact_phone: contact?.phone_no,
-              contact_wa_id: contact?.wa_id,
-              structured_data: JSON.stringify(updatedStructuredData)
-            });
-            
-          } catch (error) {
-            console.error("❌ Error fetching pricing options:", error);
-            await sendTextMsg(sender_id, "❌ Sorry, there was an error fetching pricing options. Please try again.");
-          }
+          // Send big purchase template next
+          await sendBigPurchaseTemplate(sender_id);
+          
+          // Save the big purchase message
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: "🛒 Would you like to purchase additional waste management services or products?",
+            message_type: 'template',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(updatedStructuredData)
+          });
           
           return res.status(200).json({ success: true });
         } else if (['429', '430', '431', '432', '433', '434'].includes(selectedOption.id)) {
@@ -824,47 +810,40 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
           updatedStructuredData.big_purchase = buttonReply.id === 'big_purchase_yes';
           console.log("📊 Updated with big purchase decision:", updatedStructuredData.big_purchase);
           
-          // Check if subscription is now complete
-          const isCompleteForSubscriber = updatedStructuredData && 
-            updatedStructuredData.fullname && 
-            updatedStructuredData.block && 
-            updatedStructuredData.ward_number && 
-            updatedStructuredData.property_type && 
-            updatedStructuredData.address && 
-            updatedStructuredData.wants_subscription === true &&
-            updatedStructuredData.bin_size &&
-            updatedStructuredData.frequency &&
-            updatedStructuredData.pickup_days &&
-            updatedStructuredData.pickup_days.length > 0 &&
-            updatedStructuredData.big_purchase !== null;
-
-          if (isCompleteForSubscriber) {
-            const pickupDaysText = updatedStructuredData.pickup_days.join(', ');
-            const bigPurchaseText = updatedStructuredData.big_purchase ? 'Yes' : 'No';
+          // Save the big purchase decision
+          await ConversationService.saveOutgoingMessage({
+            contact_id,
+            sender_id: 'system',
+            receiver_id: sender_id,
+            message_content: `Big Purchase: ${updatedStructuredData.big_purchase ? 'Yes' : 'No'}`,
+            message_type: 'template',
+            status: 'sent',
+            thread_id,
+            contact_name: contact?.name,
+            contact_phone: contact?.phone_no,
+            contact_wa_id: contact?.wa_id,
+            structured_data: JSON.stringify(updatedStructuredData)
+          });
+          
+          try {
+            // Call frequency-with-price API
+            const binSizeId = "68ad2f1c75c595c6aa920445"; // Default bin size ID as mentioned
+            const pricingData = await fetchFrequencyWithPrice(updatedStructuredData.pickup_days, binSizeId);
             
-            const summaryMessage = `📋 Here's your subscription details:
-
-👤 Full Name: ${updatedStructuredData.fullname}
-🏘️ Block: ${updatedStructuredData.block}
-📍 Ward Number: ${updatedStructuredData.ward_number}
-🏠 Property Type: ${updatedStructuredData.property_type}
-🏡 Address: ${updatedStructuredData.address}
-🗑️ Bin Size: ${updatedStructuredData.bin_size}
-📅 Frequency: ${updatedStructuredData.frequency}
-📆 Pickup Days: ${pickupDaysText}
-🛒 Additional Services: ${bigPurchaseText}
-
-Your subscription is confirmed! Our team will contact you soon. 😊`;
+            // Store pricing data in structured data
+            updatedStructuredData.pricing_options = pricingData;
+            updatedStructuredData.bin_size_id = binSizeId;
             
-            await sendTextMsg(sender_id, summaryMessage);
-            console.log("📋 Final subscription summary sent");
+            // Send pricing options template
+            await sendPricingOptionsTemplate(sender_id, pricingData);
             
+            // Save the pricing options message
             await ConversationService.saveOutgoingMessage({
               contact_id,
               sender_id: 'system',
               receiver_id: sender_id,
-              message_content: summaryMessage,
-              message_type: 'text',
+              message_content: "💰 Please select your preferred pricing plan from the options above.",
+              message_type: 'template',
               status: 'sent',
               thread_id,
               contact_name: contact?.name,
@@ -872,6 +851,10 @@ Your subscription is confirmed! Our team will contact you soon. 😊`;
               contact_wa_id: contact?.wa_id,
               structured_data: JSON.stringify(updatedStructuredData)
             });
+            
+          } catch (error) {
+            console.error("❌ Error fetching pricing options:", error);
+            await sendTextMsg(sender_id, "❌ Sorry, there was an error fetching pricing options. Please try again.");
           }
         } else if (buttonReply.id === 'payment_bank_transfer' || buttonReply.id === 'payment_cheque') {
           // Handle payment mode selection

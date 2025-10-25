@@ -701,6 +701,15 @@ const getAdditionalPickupDays = (selectedDay) => {
 // Function to call frequency-with-price API
 const fetchFrequencyWithPrice = async (pickupDays, binSize) => {
   try {
+    const payload = {
+      pickupDays: pickupDays,
+      binSize: binSize
+    };
+
+    console.log("🚀 Calling Dortibox API: https://dev-api.dortibox.com/get/frequency-with-price");
+    console.log("📤 Payload being sent to Dortibox API:", JSON.stringify(payload, null, 2));
+    console.log("🔑 Using Auth Token:", process.env.DORTIBOX_AUTH_TOKEN ? "Token present" : "Token missing");
+
     const options = {
       method: "POST",
       url: "https://dev-api.dortibox.com/get/frequency-with-price",
@@ -709,17 +718,20 @@ const fetchFrequencyWithPrice = async (pickupDays, binSize) => {
         Accept: "application/json",
         Authorization: `${process.env.DORTIBOX_AUTH_TOKEN}`
       },
-      data: {
-        pickupDays: pickupDays,
-        binSize: binSize
-      }
+      data: payload
     };
 
     const { data } = await axios.request(options);
-    console.log("✅ Frequency with price fetched successfully:", data);
+    console.log("✅ Frequency with price fetched successfully from Dortibox API");
+    console.log("📥 Response from Dortibox API:", JSON.stringify(data, null, 2));
     return data;
   } catch (error) {
-    console.log({ error: error?.response?.data || error?.message });
+    console.log("❌ Error calling Dortibox API:");
+    console.log("📤 Payload that failed:", JSON.stringify({ pickupDays, binSize }, null, 2));
+    console.log("🔑 Auth Token used:", process.env.DORTIBOX_AUTH_TOKEN ? "Token present" : "Token missing");
+    console.log("📥 Error response:", error?.response?.data || error?.message);
+    console.log("📊 Error status:", error?.response?.status);
+    console.log("📋 Error headers:", error?.response?.headers);
     throw error;
   }
 };
