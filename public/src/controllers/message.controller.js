@@ -112,9 +112,14 @@ const webhook = asyncHandler(async (req, res) => {
         
         if (isPaymentTxIdExpected && lastKnownDetails) {
           // User is providing payment transaction ID
+          // Extract only the transaction ID from the message
+          const paymentTxIdRaw = textMsg;
+          const paymentTxIdMatch = paymentTxIdRaw.match(/(?:my payment transaction id is\s*)?([a-zA-Z0-9]+)/i);
+          const paymentTxId = paymentTxIdMatch ? paymentTxIdMatch[1] : paymentTxIdRaw;
+
           const updatedStructuredData = {
             ...lastKnownDetails,
-            payment_tx_id: textMsg
+            payment_tx_id: paymentTxId
           };
           
           console.log("📊 Updated with payment transaction ID:", textMsg);
@@ -217,7 +222,7 @@ const webhook = asyncHandler(async (req, res) => {
               updatedStructuredData.transaction_response = transactionResponse;
               
               // Show success message
-              await sendTextMsg(sender_id, "🎉 Your subscription has been created successfully! Your order is now confirmed.");
+              await sendTextMsg(sender_id, "🎉 Your subscription has been created successfully!");
               
             } else {
               throw new Error("Invalid subscription response");

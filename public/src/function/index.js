@@ -956,26 +956,26 @@ const showCustomerDetails = async (from, customerData) => {
 📋 *Your Order Summary*
 
 👤 *Customer Details:*
-• Name: ${customerData.userName || 'N/A'}
+• Name: ${customerData.fullname || customerData.userName || 'N/A'}
 • Mobile: ${customerData.mobile || 'N/A'}
-• Property Type: ${customerData.propertyType || 'N/A'}
-• Ward: ${customerData.ward || 'N/A'}
+• Property Type: ${customerData.property_type || customerData.propertyType || 'N/A'}
+• Ward: ${customerData.ward_number || customerData.ward || 'N/A'}
 • Block: ${customerData.block || 'N/A'}
-• House Number: ${customerData.houseNumber || 'N/A'}
+• House Number: ${customerData.address || customerData.houseNumber || 'N/A'}
 
 🗑️ *Service Details:*
-• Bin Size: ${customerData.binSize || 'N/A'}
-• Pickup Days: ${customerData.pickupDays ? customerData.pickupDays.join(', ') : 'N/A'}
+• Bin Size: ${customerData.bin_size || customerData.binSize || 'N/A'}
+• Pickup Days: ${customerData.pickup_days ? customerData.pickup_days.join(', ') : 'N/A'}
 • Frequency: ${customerData.frequency || 'N/A'}
 
 💰 *Pricing:*
-• Plan: ${customerData.selectedPlan || 'N/A'}
-• Price: ${customerData.price || 'N/A'}
-• Currency: ${customerData.currency || 'N/A'}
+• Plan: ${customerData.selected_plan?.name || customerData.selectedPlan || 'N/A'}
+• Price: ${customerData.selected_plan?.discountedPrice || customerData.price || 'N/A'}
+• Currency: ${customerData.selected_plan?.currency || customerData.currency || 'N/A'}
 
 💳 *Payment:*
-• Method: ${customerData.paymentMethod || 'N/A'}
-• Transaction ID: ${customerData.paymentTxId || 'N/A'}
+• Method: ${customerData.payment_method || customerData.paymentMethod || 'N/A'}
+• Transaction ID: ${customerData.payment_tx_id || customerData.paymentTxId || 'N/A'}
 
 Thank you for choosing our waste management service! 🎉
     `;
